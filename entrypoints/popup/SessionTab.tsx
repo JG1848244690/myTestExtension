@@ -180,33 +180,31 @@ function SessionTab() {
             </span>
           )}
         </div>
+        {/* ⚠️ 云同步维护中 — 后端就绪前按钮禁用，调用保留以便 try/catch 走错误分支 */}
+        <div className="text-[10px] text-amber-500 bg-amber-500/10 rounded px-2 py-1">
+          维护中：云同步功能暂时不可用（详见 docs/2026-06-02-cloud-sync-fix-plan.md）
+        </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={handleSyncUpload}
-            disabled={syncing !== null}
+            disabled // ⚠️ 维护中：禁用
+            title="云同步维护中"
             className="flex-1 gap-1.5 h-8 text-xs"
           >
-            {syncing === 'upload' ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <CloudUpload className="w-3 h-3" />
-            )}
+            <CloudUpload className="w-3 h-3" />
             上传到云端
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleSyncDownload}
-            disabled={syncing !== null}
+            disabled // ⚠️ 维护中：禁用
+            title="云同步维护中"
             className="flex-1 gap-1.5 h-8 text-xs"
           >
-            {syncing === 'download' ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <CloudDownload className="w-3 h-3" />
-            )}
+            <CloudDownload className="w-3 h-3" />
             从云端下载
           </Button>
         </div>

@@ -7,52 +7,40 @@ import type { Shortcut, ShortcutGroup, TabSession, TabInfo, SyncResult } from '@
 const SHORTCUTS_KEY = LOCAL_STORAGE_KEY.SHORTCUTS;
 const GROUPS_KEY = LOCAL_STORAGE_KEY.GROUPS;
 const TAB_SESSIONS_KEY = LOCAL_STORAGE_KEY.TAB_SESSIONS;
-const LAST_SYNC_KEY = LOCAL_STORAGE_KEY.LAST_SYNC;
 
-// Chrome 云存储键（chrome.storage.sync 命名空间）
-const SYNC_SESSION_PREFIX = 'tabSession_';
-// 两个独立的 meta key：bookmark 和 session 各一个,避免互相覆盖
-const CLOUD_META_BOOKMARK_KEY = 'cloud_meta_bookmark';
-const CLOUD_META_SESSION_KEY = 'cloud_meta_session';
-const CLOUD_DATA_PREFIX = 'cloud_data_';
-
-// 每块最大 7KB（留余量，chrome.storage.sync 单条限制 8KB）
-const CHUNK_BYTE_LIMIT = 7000;
-
-// chrome.storage.sync 总配额 100KB（单条 8KB）
-const SYNC_TOTAL_BYTE_LIMIT = 100 * 1024;
+/*
+ * ============================================================================
+ * ⚠️ 云同步代码暂时禁用 — 等待接入后端
+ * ============================================================================
+ *
+ * 当前实现依赖 chrome.storage.sync（8KB 单条 / 100KB 总配额），存在多个
+ * 已知问题（详见 docs/2026-06-02-cloud-sync-fix-plan.md）：
+ *   - splitStringByBytes 仍有边界场景可能切坏 UTF-8
+ *   - 100KB 总配额不够装一个中等用户的会话数据
+ *   - 多设备冲突检测只是基础版，可能丢更新
+ *   - 没有断点续传，上传中途断网 = 丢全部
+ *
+ * 后续计划：搭建独立后端（REST/GraphQL）后再启用，chrome.storage.sync 仅作
+ * 离线缓存。
+ *
+ * 临时策略：
+ *   - 4 个 sync-* message handler 改为返回维护中错误（stub 见文件末尾）
+ *   - 辅助函数、常量、并发改锁、回滚逻辑全部保留在注释里，待后端就绪后恢复
+ *
+ * ⚠️ 同步修改：
+ *   - messaging/index.ts 已加注释标注临时不可用
+ *   - entrypoints/popup/SessionTab.tsx UI 按钮已 disabled（保留调用走 try/catch）
+ *   - src/components/ImportExportDialog.tsx UI 按钮已 disabled
+ *
+ * 解封步骤：
+ *   1. 删除下面的 CLOUD SYNC DISABLED 注释块（行 ~287-645）
+ *   2. 删除文件末尾 4 个 stub handler，恢复原来的 onMessage 调用
+ *   3. 在 messaging/index.ts 移除同步协议上的"维护中"注释
+ * ============================================================================
+ */
 
 export default defineBackground(() => {
   console.log('[Extension] Background script loaded', { id: browser.runtime.id });
-
-  // ===== 云同步并发锁 =====
-  // 防止 background 端 upload/download 并发执行（跨 popup 多次打开也会触发）
-  let isSyncing = false;
-  const withSyncLock = async <T extends SyncResult>(fn: () => Promise<T>): Promise<T> => {
-    if (isSyncing) {
-      return {
-        success: false,
-        error: '正在同步中，请稍后再试',
-      } as T;
-    }
-    isSyncing = true;
-    try {
-      return await fn();
-    } finally {
-      isSyncing = false;
-    }
-  };
-
-  // ===== 写入回滚辅助 =====
-  // sync-upload 流程中,跟踪所有写入的 key,失败时清理本次新写的（不删旧值,避免误删其他设备数据）
-  let trackedWriteKeys: Set<string> = new Set();
-  const trackSet = async (data: Record<string, unknown>) => {
-    Object.keys(data).forEach(k => trackedWriteKeys.add(k));
-    await browser.storage.sync.set(data);
-  };
-  const resetTrackedKeys = () => {
-    trackedWriteKeys = new Set();
-  };
 
   // 注册消息处理器 - 快捷方式
   onMessage('shortcuts/get-all', async () => {
@@ -252,6 +240,7 @@ export default defineBackground(() => {
     }
   });
 
+  /* CLOUD SYNC DISABLED — 等待接入后端（详见文件顶部说明）
   // ─── 云同步辅助函数 ───
 
   // 获取 JSON 序列化后的 UTF-8 字节长度
@@ -609,4 +598,15 @@ export default defineBackground(() => {
   // 书签 + 分组同步（newtab ImportExportDialog 用）
   onMessage('bookmarks/sync-upload', () => withSyncLock(() => doSyncUpload('bookmark')));
   onMessage('bookmarks/sync-download', () => withSyncLock(() => doSyncDownload('bookmark')));
+  */
+
+  // ⚠️ 云同步 stub — 后端就绪前占位
+  const SYNC_DISABLED_ERROR: SyncResult = {
+    success: false,
+    error: '云同步功能维护中，详见 docs/2026-06-02-cloud-sync-fix-plan.md',
+  };
+  onMessage('tab-sessions/sync-upload', () => SYNC_DISABLED_ERROR);
+  onMessage('tab-sessions/sync-download', () => SYNC_DISABLED_ERROR);
+  onMessage('bookmarks/sync-upload', () => SYNC_DISABLED_ERROR);
+  onMessage('bookmarks/sync-download', () => SYNC_DISABLED_ERROR);
 });

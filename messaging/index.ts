@@ -26,10 +26,13 @@ interface ProtocolMap {
   'tab-sessions/delete': (sessionId: string) => { success: boolean; error?: string };
 
   // 标签页会话云同步（只同步 sessions）
+  // ⚠️ 临时不可用 — 等接入后端后启用；详见 docs/2026-06-02-cloud-sync-fix-plan.md
+  // 后端就绪前，调用会通过 background 的 stub handler 收到 success: false 错误
   'tab-sessions/sync-upload': () => SyncResult;
   'tab-sessions/sync-download': () => SyncResult;
 
   // 书签 + 分组云同步（shortcuts + groups，不含 sessions）
+  // ⚠️ 临时不可用 — 同上
   'bookmarks/sync-upload': () => SyncResult;
   'bookmarks/sync-download': () => SyncResult;
 }
