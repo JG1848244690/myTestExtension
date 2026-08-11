@@ -32,11 +32,12 @@ const scheduleWrite = (value: SearchHistoryItem[]): void => {
   pendingValue = value;
   if (writeTimer) return;
   writeTimer = setTimeout(() => {
-    if (pendingValue) {
-      cell.write(pendingValue).catch((e) => console.error('[history] persist failed:', e));
-    }
+    const v = pendingValue;
     writeTimer = null;
     pendingValue = null;
+    if (v) {
+      cell.write(v).catch((e) => console.error('[history] persist failed:', e));
+    }
   }, 50);
 };
 
@@ -44,15 +45,30 @@ let initialized = false;
 export async function initHistoryStore(): Promise<void> {
   if (initialized) return;
   initialized = true;
-  const raw = await cell.read();
-  const list = safeRead(historySchema, raw, []);
-  historyStore.replace(list);
+  try {
+    cell.watch((next) => {
+      if (next === undefined) return;
+      const current = historyStore.get();
+      if (
+        current.length === next.length &&
+        current.every(
+          (h, i) =>
+            h === next[i] ||
+            (h.query === next[i]?.query && h.timestamp === next[i]?.timestamp)
+        )
+      ) {
+        return;
+      }
+      historyStore.replace(next);
+    });
 
-  cell.watch((next) => {
-    if (next === undefined) return;
-    if (pendingValue && JSON.stringify(next) === JSON.stringify(pendingValue)) return;
-    historyStore.replace(next);
-  });
+    const raw = await cell.read();
+    const list = safeRead(historySchema, raw, []);
+    historyStore.replace(list);
+  } catch (e) {
+    console.error('[history] init failed:', e);
+    historyStore.replace([]);
+  }
 }
 
 export const historyActions = {

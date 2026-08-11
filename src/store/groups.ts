@@ -35,11 +35,12 @@ const scheduleWrite = (value: ShortcutGroup[]): void => {
   pendingValue = value;
   if (writeTimer) return;
   writeTimer = setTimeout(() => {
-    if (pendingValue) {
-      cell.write(pendingValue).catch((e) => console.error('[groups] persist failed:', e));
-    }
+    const v = pendingValue;
     writeTimer = null;
     pendingValue = null;
+    if (v) {
+      cell.write(v).catch((e) => console.error('[groups] persist failed:', e));
+    }
   }, 50);
 };
 
@@ -47,15 +48,30 @@ let initialized = false;
 export async function initGroupsStore(): Promise<void> {
   if (initialized) return;
   initialized = true;
-  const raw = await cell.read();
-  const list = safeRead(v.array(groupSchema), raw, DEFAULT_GROUPS);
-  groupsStore.replace({ list, loaded: true });
+  try {
+    cell.watch((next) => {
+      if (next === undefined) return;
+      const current = groupsStore.get().list;
+      if (
+        current.length === next.length &&
+        current.every(
+          (g, i) =>
+            g === next[i] ||
+            (g.id === next[i]?.id && g.updatedAt === next[i]?.updatedAt)
+        )
+      ) {
+        return;
+      }
+      groupsStore.set({ list: next });
+    });
 
-  cell.watch((next) => {
-    if (next === undefined) return;
-    if (pendingValue && JSON.stringify(next) === JSON.stringify(pendingValue)) return;
-    groupsStore.set({ list: next });
-  });
+    const raw = await cell.read();
+    const list = safeRead(v.array(groupSchema), raw, DEFAULT_GROUPS);
+    groupsStore.replace({ list, loaded: true });
+  } catch (e) {
+    console.error('[groups] init failed:', e);
+    groupsStore.replace({ list: DEFAULT_GROUPS, loaded: true });
+  }
 }
 
 export const groupsActions = {

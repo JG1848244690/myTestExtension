@@ -1,8 +1,10 @@
 /**
  * 零依赖的轻量 store
+ *
+ * 关键设计：getSnapshot 必须引用稳定，否则 useSyncExternalStore 会无限循环
  */
 
-import { useSyncExternalStore } from 'react';
+import { useCallback, useRef, useSyncExternalStore } from 'react';
 
 type Listener = () => void;
 type Updater<T> = Partial<T> | ((state: T) => Partial<T>);
@@ -17,7 +19,18 @@ export interface Store<T> {
 export function createStore<T>(initial: T): Store<T> {
   let state = initial;
   const listeners = new Set<Listener>();
-  const notify = () => listeners.forEach((l) => l());
+
+  const notify = () => {
+    // 复制一份避免回调里 subscribe/unsubscribe 引发的迭代问题
+    listeners.forEach((l) => {
+      try {
+        l();
+      } catch (e) {
+        console.error('[store] listener threw:', e);
+      }
+    });
+  };
+
   return {
     get: () => state,
     set: (updater) => {
@@ -34,13 +47,37 @@ export function createStore<T>(initial: T): Store<T> {
     },
     subscribe: (listener) => {
       listeners.add(listener);
-      return () => listeners.delete(listener);
+      return () => {
+        listeners.delete(listener);
+      };
     },
   };
 }
 
+/**
+ * 关键：getSnapshot 引用稳定，且返回值引用稳定（同 state 返回同引用）
+ *
+ * 模式参考 Zustand：
+ * - selector 存到 ref，每次 render 更新（不必 stable）
+ * - getSnapshot 用 useCallback 锁住（deps 只有 store）
+ * - 内部缓存 selected 值，state 没变就返回缓存
+ */
 export function useStoreState<T, U>(store: Store<T>, selector: (state: T) => U): U {
-  const getSnapshot = () => selector(store.get());
+  const selectorRef = useRef(selector);
+  selectorRef.current = selector;
+
+  const cacheRef = useRef<{ state: T; selected: U } | null>(null);
+
+  const getSnapshot = useCallback((): U => {
+    const current = store.get();
+    if (cacheRef.current && cacheRef.current.state === current) {
+      return cacheRef.current.selected;
+    }
+    const selected = selectorRef.current(current);
+    cacheRef.current = { state: current, selected };
+    return selected;
+  }, [store]);
+
   return useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot);
 }
 

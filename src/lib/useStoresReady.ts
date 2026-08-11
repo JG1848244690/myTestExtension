@@ -1,36 +1,32 @@
 /**
  * 等待 stores 初始化完成的 hook
  *
- * 在 App 入口用一次，确保 UI 不会在 store 还在读 storage 时误渲染空数据
+ * 简化版：只依赖 initAllStores() 的 Promise，不订阅 store 状态，
+ * 避免 selector 不稳定和 effect 双重触发问题
  */
 
 import { useEffect, useState } from 'react';
 import { initAllStores } from '@/src/store/init';
-import { useStoreState } from '@/src/lib/store';
-import { shortcutsStore } from '@/src/store/shortcuts';
-import { groupsStore } from '@/src/store/groups';
 
 export function useStoresReady(): boolean {
-  const shortcutsLoaded = useStoreState(shortcutsStore, (s) => s.loaded);
-  const groupsLoaded = useStoreState(groupsStore, (s) => s.loaded);
-  const [ready, setReady] = useState(
-    shortcutsLoaded && groupsLoaded
-  );
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    initAllStores().then(() => {
-      if (!cancelled) setReady(true);
-    });
+    initAllStores().then(
+      () => {
+        if (!cancelled) setReady(true);
+      },
+      (err) => {
+        // 即使初始化失败，也让 UI 继续渲染（store 会用默认值）
+        console.error('[useStoresReady] init failed:', err);
+        if (!cancelled) setReady(true);
+      }
+    );
     return () => {
       cancelled = true;
     };
   }, []);
-
-  // 即便 initAllStores 已经跑过，state loaded 信号也会让组件及时刷新
-  useEffect(() => {
-    if (shortcutsLoaded && groupsLoaded) setReady(true);
-  }, [shortcutsLoaded, groupsLoaded]);
 
   return ready;
 }

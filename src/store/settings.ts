@@ -19,11 +19,12 @@ const scheduleWrite = (value: Settings): void => {
   pendingValue = value;
   if (writeTimer) return;
   writeTimer = setTimeout(() => {
-    if (pendingValue) {
-      cell.write(pendingValue).catch((e) => console.error('[settings] persist failed:', e));
-    }
+    const v = pendingValue;
     writeTimer = null;
     pendingValue = null;
+    if (v) {
+      cell.write(v).catch((e) => console.error('[settings] persist failed:', e));
+    }
   }, 50);
 };
 
@@ -31,15 +32,29 @@ let initialized = false;
 export async function initSettingsStore(): Promise<void> {
   if (initialized) return;
   initialized = true;
-  const raw = await cell.read();
-  const settings = safeRead(settingsSchema, raw, DEFAULT_SETTINGS);
-  settingsStore.replace(settings);
+  try {
+    cell.watch((next) => {
+      if (next === undefined) return;
+      const current = settingsStore.get();
+      // settings 是浅对象，字段比较足够
+      if (
+        current.searchEngine === next.searchEngine &&
+        current.iconsPerRow === next.iconsPerRow &&
+        current.layout === next.layout &&
+        current.background === next.background
+      ) {
+        return;
+      }
+      settingsStore.replace(next);
+    });
 
-  cell.watch((next) => {
-    if (next === undefined) return;
-    if (pendingValue && JSON.stringify(next) === JSON.stringify(pendingValue)) return;
-    settingsStore.replace(next);
-  });
+    const raw = await cell.read();
+    const settings = safeRead(settingsSchema, raw, DEFAULT_SETTINGS);
+    settingsStore.replace(settings);
+  } catch (e) {
+    console.error('[settings] init failed:', e);
+    settingsStore.replace(DEFAULT_SETTINGS);
+  }
 }
 
 export const settingsActions = {
