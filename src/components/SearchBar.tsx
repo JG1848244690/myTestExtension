@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react';
+﻿import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Clock, X, ArrowRight, Globe, Loader2, TrendingUp } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/src/components/ui/select';
-import { useSearchHistory } from '@/src/hooks/useSearchHistory';
+import { useHistoryStore } from '@/src/hooks/useHistoryStore';
 import type { SearchEngineType, SearchEngineOption, Shortcut } from '@/src/utils/types';
 import { cn } from '@/src/lib/utils';
 import { notifyNewtabNavigated } from '@/src/utils/navigationReset';
@@ -74,7 +74,7 @@ export function SearchBar({
   const jsonpCallbackRef = useRef<string>('');
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { history, addHistory, clearHistory, removeHistoryItem } = useSearchHistory();
+  const { history, addHistory, clearHistory, removeHistoryItem } = useHistoryStore();
 
   const fetchBaiduSuggestions = useCallback((keyword: string): Promise<string[]> => {
     return new Promise((resolve) => {
@@ -138,7 +138,7 @@ export function SearchBar({
 
     if (historyMatches.length > 0) {
       groups.push({
-        title: '历史记录',
+        title: '鍘嗗彶璁板綍',
         items: historyMatches.slice(0, 5).map((h) => ({
           id: `history-${h.query}`,
           text: h.query,
@@ -159,7 +159,7 @@ export function SearchBar({
 
       if (shortcutMatches.length > 0) {
         groups.push({
-          title: '快捷方式',
+          title: '蹇嵎鏂瑰紡',
           items: shortcutMatches.map((s) => ({
             id: `shortcut-${s.id}`,
             text: s.name,
@@ -185,10 +185,10 @@ export function SearchBar({
         const apiSuggestions = await fetchSearchSuggestions(query);
 
         if (apiSuggestions.length > 0) {
-          const insertIndex = groups.length > 0 && groups[0].title === '历史记录' ? 1 : 0;
+          const insertIndex = groups.length > 0 && groups[0].title === '鍘嗗彶璁板綍' ? 1 : 0;
 
           newGroups.splice(insertIndex, 0, {
-            title: '搜索建议',
+            title: '鎼滅储寤鸿',
             items: apiSuggestions.slice(0, 5).map((s) => ({
               id: `suggestion-${s}`,
               text: s,
@@ -223,7 +223,7 @@ export function SearchBar({
     };
   }, [query, showSuggestions, updateSuggestions]);
 
-  // 清空 item refs 当建议列表变化时
+  // 娓呯┖ item refs 褰撳缓璁垪琛ㄥ彉鍖栨椂
   useEffect(() => {
     itemRefs.current.clear();
   }, [suggestionGroups]);
@@ -281,7 +281,7 @@ export function SearchBar({
     return null;
   };
 
-  // 滚动选中的项到可见区域
+  // 婊氬姩閫変腑鐨勯」鍒板彲瑙佸尯鍩?
   const scrollToSelectedItem = (index: number) => {
     const doScroll = () => {
       const itemElement = itemRefs.current.get(index);
@@ -292,18 +292,18 @@ export function SearchBar({
         const containerScrollTop = container.scrollTop;
         const containerHeight = container.clientHeight;
 
-        // 如果项在可视区域上方
+        // 濡傛灉椤瑰湪鍙鍖哄煙涓婃柟
         if (itemTop < containerScrollTop) {
           container.scrollTo({ top: itemTop, behavior: 'instant' });
         }
-        // 如果项在可视区域下方
+        // 濡傛灉椤瑰湪鍙鍖哄煙涓嬫柟
         else if (itemTop + itemHeight > containerScrollTop + containerHeight) {
           container.scrollTo({ top: itemTop - containerHeight + itemHeight, behavior: 'instant' });
         }
       }
     };
 
-    // 如果 ref 还没设置好，延迟重试
+    // 濡傛灉 ref 杩樻病璁剧疆濂斤紝寤惰繜閲嶈瘯
     if (!itemRefs.current.has(index)) {
       setTimeout(() => doScroll(), 10);
     } else {
@@ -321,7 +321,7 @@ export function SearchBar({
       return;
     }
 
-    // 确保 selectedIndex 在有效范围内
+    // 纭繚 selectedIndex 鍦ㄦ湁鏁堣寖鍥村唴
     const safeIndex = Math.min(selectedIndex, totalItems - 1);
     let newIndex = safeIndex;
 
@@ -352,7 +352,7 @@ export function SearchBar({
     }
 
     setSelectedIndex(newIndex);
-    // 延迟滚动，确保 DOM 已更新
+    // 寤惰繜婊氬姩锛岀‘淇?DOM 宸叉洿鏂?
     setTimeout(() => scrollToSelectedItem(newIndex), 0);
   };
 
@@ -416,7 +416,7 @@ export function SearchBar({
             <Input
               ref={inputRef}
               type="text"
-              placeholder="搜索或直接访问网址..."
+              placeholder="鎼滅储鎴栫洿鎺ヨ闂綉鍧€..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => setShowSuggestions(true)}
@@ -442,7 +442,7 @@ export function SearchBar({
               disabled:opacity-50 disabled:shadow-none"
           >
             <Search className="w-4 h-4 mr-2" />
-            搜索
+            鎼滅储
           </Button>
         </div>
 
@@ -512,7 +512,7 @@ export function SearchBar({
                                 "p-1.5 rounded-md transition-colors",
                                 isSelected ? "hover:bg-primary/20" : "hover:bg-muted"
                               )}
-                              title="删除"
+                              title="鍒犻櫎"
                             >
                               <X className="w-3.5 h-3.5 text-muted-foreground" />
                             </button>
@@ -537,16 +537,16 @@ export function SearchBar({
             <div className="flex items-center justify-between px-3 py-2 border-t border-white/20 dark:border-black/10 bg-white/10 dark:bg-black/10 text-xs text-muted-foreground">
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">↑↓</kbd>
-                  导航
+                  <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">鈫戔啌</kbd>
+                  瀵艰埅
                 </span>
                 <span className="flex items-center gap-1">
                   <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">Enter</kbd>
-                  确认
+                  纭
                 </span>
                 <span className="flex items-center gap-1">
                   <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">Esc</kbd>
-                  关闭
+                  鍏抽棴
                 </span>
               </div>
               {history.length > 0 && (
@@ -557,7 +557,7 @@ export function SearchBar({
                   }}
                   className="hover:text-destructive transition-colors"
                 >
-                  清空历史
+                  娓呯┖鍘嗗彶
                 </button>
               )}
             </div>

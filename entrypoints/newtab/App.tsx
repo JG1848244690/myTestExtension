@@ -1,77 +1,57 @@
 import { useState, useEffect } from 'react';
 import { Settings } from 'lucide-react';
-import { storage } from '@wxt-dev/storage';
 import { SearchBar } from '@/src/components/SearchBar';
 import { GroupLayout } from '@/src/components/GroupLayout';
 import { SettingsSheet } from '@/src/components/SettingsSheet';
 import { Button } from '@/src/components/ui/button';
-import { useShortcuts } from '@/src/hooks/useShortcuts';
-import { useGroups } from '@/src/hooks/useGroups';
-import { useSearchEngine } from '@/src/hooks/useSearchEngine';
+import { useShortcutsStore } from '@/src/hooks/useShortcutsStore';
+import { useGroupsStore } from '@/src/hooks/useGroupsStore';
+import { useSettingsStore } from '@/src/hooks/useSettingsStore';
 import { useTheme } from '@/src/hooks/useTheme';
-import { LOCAL_STORAGE_KEY, DEFAULT_SETTINGS } from '@/src/utils/constants';
-import { NEWTAB_NAVIGATED_EVENT } from '@/src/utils/navigationReset';
+import { useStoresReady } from '@/src/lib/useStoresReady';
+import { useStoreState } from '@/src/lib/store';
+import { settingsStore } from '@/src/store/settings';
+import { notifyNewtabNavigated } from '@/src/utils/navigationReset';
 import type { BackgroundSetting } from '@/src/utils/types';
 
-// 完整的存储键
-const SETTINGS_KEY = LOCAL_STORAGE_KEY.SETTINGS;
-
 function App() {
-  const { shortcuts, addShortcut, addShortcuts, updateShortcut, removeShortcut, removeShortcuts, importShortcuts } = useShortcuts();
-  const { groups, addGroup, updateGroup, removeGroup, toggleGroupExpand, addShortcutToGroup, moveShortcutsToGroup, getUngroupedShortcutIds, importGroups, reorderGroups, reorderShortcutsInGroup } = useGroups();
-  const { engine, engineOption, engineOptions, setEngine, search } = useSearchEngine();
+  const storesReady = useStoresReady();
+
+  // shortcuts
+  const { shortcuts, addShortcut, addShortcuts, updateShortcut, removeShortcut, removeShortcuts, importShortcuts } =
+    useShortcutsStore();
+  // groups
+  const {
+    groups,
+    addGroup,
+    updateGroup,
+    removeGroup,
+    toggleGroupExpand,
+    addShortcutToGroup,
+    moveShortcutsToGroup,
+    getUngroupedShortcutIds,
+    importGroups,
+    reorderGroups,
+    reorderShortcutsInGroup,
+  } = useGroupsStore();
+  // settings
+  const { engine, engineOption, engineOptions, setEngine, setBackground } = useSettingsStore();
+  // settings.background 单独订阅（避免其他 settings 字段变化触发本组件 re-render）
+  const background = useStoreState(settingsStore, (s) => s.background);
+
   const { mounted } = useTheme();
-  const [background, setBackground] = useState<BackgroundSetting | undefined>(undefined);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [backgroundLoaded, setBackgroundLoaded] = useState(false);
   const [resetNonce, setResetNonce] = useState(0);
 
-  // 加载背景设置
-  useEffect(() => {
-    storage.getItem<{ background?: BackgroundSetting }>(SETTINGS_KEY).then((settings) => {
-      if (settings?.background) {
-        setBackground(settings.background);
-      }
-      setBackgroundLoaded(true);
-    });
-
-    // 监听设置变化，实时更新背景
-    const unwatch = storage.watch<{ background?: BackgroundSetting }>(
-      SETTINGS_KEY,
-      (newSettings) => {
-        if (newSettings?.background) {
-          setBackground(newSettings.background);
-        }
-      }
-    );
-
-    return unwatch;
-  }, []);
-
-  // 在新标签页触发“跳转到目标网址”后，重置本页面的 UI 状态
+  // 跳转重置
   useEffect(() => {
     const handleNavigated = () => setResetNonce((n) => n + 1);
     window.addEventListener(NEWTAB_NAVIGATED_EVENT, handleNavigated);
     return () => window.removeEventListener(NEWTAB_NAVIGATED_EVENT, handleNavigated);
   }, []);
 
-  // 保存背景设置
-  const handleSaveBackground = async (setting: BackgroundSetting) => {
-    setBackground(setting);
-    const settings = await storage.getItem<typeof DEFAULT_SETTINGS>(SETTINGS_KEY) || DEFAULT_SETTINGS;
-    await storage.setItem(SETTINGS_KEY, { ...settings, background: setting });
-  };
-
-  // 处理导入数据（从导入导出对话框）
-  const handleImportData = async (newShortcuts: typeof shortcuts, newGroups: typeof groups) => {
-    await Promise.all([
-      importShortcuts(newShortcuts),
-      importGroups(newGroups),
-    ]);
-  };
-
-  // 等待主题和背景设置加载完成
-  if (!mounted || !backgroundLoaded) {
+  // 等待主题 + stores 初始化
+  if (!mounted || !storesReady) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse">加载中...</div>
@@ -79,51 +59,44 @@ function App() {
     );
   }
 
-  // 计算背景样式
+  // 保存背景
+  const handleSaveBackground = (setting: BackgroundSetting) => {
+    setBackground(setting);
+  };
+
+  // 处理导入数据
+  const handleImportData = async (newShortcuts: typeof shortcuts, newGroups: typeof groups) => {
+    await Promise.all([importShortcuts(newShortcuts), importGroups(newGroups)]);
+  };
+
+  // 背景样式
   const getBackgroundStyle = (): React.CSSProperties => {
-    if (!background || background.type === 'none') {
-      return {};
-    }
-
-    if (background.type === 'color') {
-      return { backgroundColor: background.color };
-    }
-
+    if (!background || background.type === 'none') return {};
+    if (background.type === 'color') return { backgroundColor: background.color };
     if (background.type === 'image' && background.imageUrl) {
       return {
-        backgroundImage: `url(${background.imageUrl})`,
+        backgroundImage: 'url(' + background.imageUrl + ')',
         backgroundSize: background.size || 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
       };
     }
-
     return {};
   };
 
-  // 计算背景遮罩样式
+  // 背景遮罩样式
   const getOverlayStyle = (): React.CSSProperties => {
-    if (!background || background.type !== 'image' || background.opacity === undefined) {
-      return {};
-    }
-    return {
-      backgroundColor: `rgba(0, 0, 0, ${1 - background.opacity})`,
-    };
+    if (!background || background.type !== 'image' || background.opacity === undefined) return {};
+    return { backgroundColor: 'rgba(0, 0, 0, ' + (1 - background.opacity) + ')' };
   };
 
   return (
     <div className="min-h-screen relative" style={getBackgroundStyle()}>
-      {/* 背景遮罩 */}
       {background?.type === 'image' && background.imageUrl && (
-        <div
-          className="fixed inset-0 z-0"
-          style={getOverlayStyle()}
-        />
+        <div className="fixed inset-0 z-0" style={getOverlayStyle()} />
       )}
 
-      {/* 主内容 */}
       <div className="min-h-screen bg-transparent transition-colors duration-300 relative z-10">
-        {/* 顶部工具栏 */}
         <div className="fixed top-4 right-4 z-10
           bg-white/20 dark:bg-black/20 backdrop-blur-xl
           border border-white/20 dark:border-black/10
@@ -139,26 +112,26 @@ function App() {
           </Button>
         </div>
 
-        {/* 主要内容 */}
         <div className="min-h-screen flex flex-col items-center px-8 pt-8">
-
-          {/* 搜索区域 */}
           <div className="w-full max-w-3xl relative z-50 mb-6">
             <SearchBar
-              key={`search-${resetNonce}`}
+              key={'search-' + resetNonce}
               engine={engine}
               engineOption={engineOption}
               engineOptions={engineOptions}
               onEngineChange={setEngine}
-              onSearch={search}
+              onSearch={useCallback((q: string) => {
+                if (!q.trim()) return;
+                window.open(engineOption.url + encodeURIComponent(q.trim()), '_blank');
+                notifyNewtabNavigated();
+              }, [engineOption])}
               shortcuts={shortcuts}
             />
           </div>
 
-          {/* 分组布局 */}
           <div className="w-full max-w-4xl flex-1 mt-16">
             <GroupLayout
-              key={`groups-${resetNonce}`}
+              key={'groups-' + resetNonce}
               groups={groups}
               shortcuts={shortcuts}
               onToggleGroupExpand={toggleGroupExpand}
@@ -178,16 +151,13 @@ function App() {
               getUngroupedShortcutIds={getUngroupedShortcutIds}
             />
           </div>
-
         </div>
 
-        {/* 底部信息 */}
         <div className="fixed bottom-4 left-0 right-0 text-center text-muted-foreground text-sm">
-          序言 · {shortcuts.length} 个快捷方式
+          序章 · {shortcuts.length} 个快捷方式
         </div>
       </div>
 
-      {/* 设置侧栏 - 右侧 */}
       <SettingsSheet
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
@@ -197,5 +167,9 @@ function App() {
     </div>
   );
 }
+
+// 在组件外定义 NEWTAB_NAVIGATED_EVENT 常量（避免循环依赖）
+import { NEWTAB_NAVIGATED_EVENT } from '@/src/utils/navigationReset';
+import { useCallback } from 'react';
 
 export default App;
