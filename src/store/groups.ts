@@ -30,12 +30,18 @@ interface GroupsState {
 const cell = createStorageCell<ShortcutGroup[]>(STORAGE_KEYS.groups);
 export const groupsStore = createStore<GroupsState>({ list: [], loaded: false });
 
+/** 防抖写：50ms 内多次 setItem 只触发最后一次
+ *
+ * silent=true: 同步模块(syncAuto)调用 replace() 时用,只写 storage 不标脏。
+ * dirty 由 syncAuto 自己根据「本地 vs 云端是否一致」显式控制。
+ */
 let writeTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingValue: ShortcutGroup[] | null = null;
-const scheduleWrite = (value: ShortcutGroup[]): void => {
+const scheduleWrite = (value: ShortcutGroup[], silent: boolean = false): void => {
   pendingValue = value;
-  // 用户 mutation → 标脏亮红点。同步模块的写入绕过这里,不会误触发。
-  void markDirty('bookmarks');
+  if (!silent) {
+    void markDirty('bookmarks');
+  }
   if (writeTimer) return;
   writeTimer = setTimeout(() => {
     const v = pendingValue;
@@ -133,8 +139,11 @@ export const groupsActions = {
     scheduleWrite(list);
   },
 
+  /**
+   * replace: 无条件覆盖本地数据,silent 模式不触发 markDirty(详见 shortcuts.ts 注释)
+   */
   replace(next: ShortcutGroup[]) {
     groupsStore.set({ list: next });
-    scheduleWrite(next);
+    scheduleWrite(next, true);  // silent: 不调 markDirty
   },
 };

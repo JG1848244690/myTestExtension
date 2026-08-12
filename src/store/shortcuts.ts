@@ -32,14 +32,20 @@ interface ShortcutsState {
 const cell = createStorageCell<Shortcut[]>(STORAGE_KEYS.shortcuts);
 export const shortcutsStore = createStore<ShortcutsState>({ list: [], loaded: false });
 
-/** 防抖写：50ms 内多次 setItem 只触发最后一次 */
+/** 防抖写：50ms 内多次 setItem 只触发最后一次
+ *
+ * silent=true: 同步模块(syncAuto)调用 replace() 时用,只写 storage 不标脏。
+ * dirty 由 syncAuto 自己根据「本地 vs 云端是否一致」显式控制。
+ */
 let writeTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingValue: Shortcut[] | null = null;
-const scheduleWrite = (value: Shortcut[]): void => {
+const scheduleWrite = (value: Shortcut[], silent: boolean = false): void => {
   pendingValue = value;
-  // 用户 mutation(add/update/remove/reorder/replace/import)→ 标脏亮红点。
-  // 同步模块的写入绕过这里(直接 storage.setItem),不会误触发。
-  void markDirty('bookmarks');
+  // 用户 mutation → 标脏亮红点。silent 模式(syncAuto 覆盖本地)跳过,
+  // 避免「下载完成后本地=云端」反而标脏的 bug。
+  if (!silent) {
+    void markDirty('bookmarks');
+  }
   if (writeTimer) return;
   writeTimer = setTimeout(() => {
     const v = pendingValue;
@@ -133,8 +139,15 @@ export const shortcutsActions = {
     scheduleWrite(list);
   },
 
+  /**
+   * replace: 无条件覆盖本地数据,**不触发 markDirty**(silent 模式)
+   *
+   * 用途:syncAuto 从云端下载后整包覆盖本地,以及 initShortcutsStore 初始化默认值。
+   * 覆盖完本地应该 = 云端,dirty 由 syncAuto 自己根据「本地 vs 云端是否一致」
+   * 显式 clearDirty / markDirty。
+   */
   replace(next: Shortcut[]): void {
     shortcutsStore.set({ list: next });
-    scheduleWrite(next);
+    scheduleWrite(next, true);  // silent: 不调 markDirty
   },
 };
