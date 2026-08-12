@@ -22,7 +22,9 @@ import {
   DEFAULT_BACKGROUND_COLOR,
 } from '@/src/utils/constants';
 import type { BackgroundSetting, BackgroundType, BackgroundSize } from '@/src/utils/types';
-import { Image, Palette, Maximize2, RotateCcw, Upload } from 'lucide-react';
+import { Image, Palette, Maximize2, RotateCcw, Upload, Globe } from 'lucide-react';
+import { useI18n, SUPPORTED_LOCALES, type Locale } from '@/src/i18n';
+import { useSettingsStore } from '@/src/hooks/useSettingsStore';
 
 interface SettingsSheetProps {
   open: boolean;
@@ -31,12 +33,37 @@ interface SettingsSheetProps {
   onSave: (setting: BackgroundSetting) => void;
 }
 
+/** 预设色 key → 词典 key 的映射(避免在 JSX 里嵌 i18n key) */
+const PRESET_COLOR_KEY = {
+  '#1a1a2e': 'midNightBlue',
+  '#16213e': 'starPurple',
+  '#0f0f23': 'geekBlack',
+  '#1e3a3a': 'mintGreen',
+  '#2d2d44': 'warmOrange',
+  '#2e1f2e': 'rosePink',
+  '#1a2a3a': 'glacierBlue',
+  '#1a2e1a': 'forestGreen',
+} as const;
+
+/** 预设图 URL → 词典 key 的映射 */
+const PRESET_IMAGE_KEY = {
+  'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920&q=80': 'starry',
+  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80': 'mountain',
+  'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1920&q=80': 'city',
+  'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=1920&q=80': 'wave',
+  'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80': 'forest',
+  'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920&q=80': 'sunset',
+} as const;
+
 export function SettingsSheet({
   open,
   onOpenChange,
   setting,
   onSave,
 }: SettingsSheetProps) {
+  const { t, locale } = useI18n();
+  const { settings, setLanguage } = useSettingsStore();
+
   const [type, setType] = useState<BackgroundType>(setting.type || 'none');
   const [color, setColor] = useState(setting.color || DEFAULT_BACKGROUND_COLOR);
   const [imageUrl, setImageUrl] = useState(setting.imageUrl || '');
@@ -94,13 +121,13 @@ export function SettingsSheet({
 
     // 检查文件类型
     if (!file.type.startsWith('image/')) {
-      alert('请选择图片文件');
+      alert(t('settings.bg.invalidType'));
       return;
     }
 
     // 检查文件大小 (限制 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert('图片大小不能超过 5MB');
+      alert(t('settings.bg.tooLarge'));
       return;
     }
 
@@ -161,14 +188,34 @@ export function SettingsSheet({
         <SheetHeader className="pb-4">
           <SheetTitle className="flex items-center gap-2">
             <Palette className="w-5 h-5" />
-            设置
+            {t('settings.title')}
           </SheetTitle>
         </SheetHeader>
 
         <div className="space-y-6">
+          {/* 语言切换 */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5" />
+              {t('settings.language')}
+            </Label>
+            <Select value={settings.language ?? locale} onValueChange={(v) => setLanguage(v as Locale)}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SUPPORTED_LOCALES.map((loc) => (
+                  <SelectItem key={loc} value={loc}>
+                    {t(`settings.languageOptions.${loc}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* 背景类型选择 */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium">背景类型</Label>
+            <Label className="text-sm font-medium">{t('settings.bg.typeLabel')}</Label>
             <div className="flex gap-2">
               <Button
                 variant={type === 'none' ? 'default' : 'outline'}
@@ -176,7 +223,7 @@ export function SettingsSheet({
                 onClick={() => handleTypeChange('none')}
                 className="flex-1"
               >
-                无
+                {t('settings.bg.type.none')}
               </Button>
               <Button
                 variant={type === 'color' ? 'default' : 'outline'}
@@ -185,7 +232,7 @@ export function SettingsSheet({
                 className="flex-1 gap-1.5"
               >
                 <Palette className="w-3.5 h-3.5" />
-                纯色
+                {t('settings.bg.type.color')}
               </Button>
               <Button
                 variant={type === 'image' ? 'default' : 'outline'}
@@ -194,7 +241,7 @@ export function SettingsSheet({
                 className="flex-1 gap-1.5"
               >
                 <Image className="w-3.5 h-3.5" />
-                图片
+                {t('settings.bg.type.image')}
               </Button>
             </div>
           </div>
@@ -203,25 +250,29 @@ export function SettingsSheet({
           {type === 'color' && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-sm font-medium">选择预设颜色</Label>
+                <Label className="text-sm font-medium">{t('settings.bg.presetColors')}</Label>
                 <div className="flex flex-wrap gap-3">
-                  {PRESET_COLORS.map((preset) => (
-                    <button
-                      key={preset.color}
-                      onClick={() => handleColorChange(preset.color)}
-                      className={`w-10 h-10 rounded-xl border-2 transition-all ${
-                        color === preset.color
-                          ? 'border-primary scale-110 shadow-md'
-                          : 'border-transparent hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: preset.color }}
-                      title={preset.name}
-                    />
-                  ))}
+                  {PRESET_COLORS.map((preset) => {
+                    const colorKey = PRESET_COLOR_KEY[preset.color as keyof typeof PRESET_COLOR_KEY];
+                    const colorName = colorKey ? t(`settings.bg.presetColor.${colorKey}`) : preset.name;
+                    return (
+                      <button
+                        key={preset.color}
+                        onClick={() => handleColorChange(preset.color)}
+                        className={`w-10 h-10 rounded-xl border-2 transition-all ${
+                          color === preset.color
+                            ? 'border-primary scale-110 shadow-md'
+                            : 'border-transparent hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: preset.color }}
+                        title={colorName}
+                      />
+                    );
+                  })}
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-medium">自定义颜色</Label>
+                <Label className="text-sm font-medium">{t('settings.bg.customColor')}</Label>
                 <div className="flex items-center gap-3">
                   <Input
                     type="color"
@@ -245,35 +296,39 @@ export function SettingsSheet({
             <div className="space-y-5">
               {/* 预设图片 */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">预设背景</Label>
+                <Label className="text-sm font-medium">{t('settings.bg.presetImages')}</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {PRESET_IMAGES.map((preset) => (
-                    <button
-                      key={preset.url}
-                      onClick={() => handleImageUrlChange(preset.url)}
-                      className={`relative aspect-video rounded-lg overflow-hidden border-2 transition-all ${
-                        imageUrl === preset.url
-                          ? 'border-primary ring-2 ring-primary/30'
-                          : 'border-transparent hover:ring-2 hover:ring-muted'
-                      }`}
-                      title={preset.name}
-                    >
-                      <img
-                        src={preset.url}
-                        alt={preset.name}
-                        className="w-full h-full object-cover"
-                      />
-                      <span className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent text-white text-xs py-1.5 text-center font-medium">
-                        {preset.name}
-                      </span>
-                    </button>
-                  ))}
+                  {PRESET_IMAGES.map((preset) => {
+                    const imageKey = PRESET_IMAGE_KEY[preset.url as keyof typeof PRESET_IMAGE_KEY];
+                    const imageName = imageKey ? t(`settings.bg.presetImage.${imageKey}`) : preset.name;
+                    return (
+                      <button
+                        key={preset.url}
+                        onClick={() => handleImageUrlChange(preset.url)}
+                        className={`relative aspect-video rounded-lg overflow-hidden border-2 transition-all ${
+                          imageUrl === preset.url
+                            ? 'border-primary ring-2 ring-primary/30'
+                            : 'border-transparent hover:ring-2 hover:ring-muted'
+                        }`}
+                        title={imageName}
+                      >
+                        <img
+                          src={preset.url}
+                          alt={imageName}
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent text-white text-xs py-1.5 text-center font-medium">
+                          {imageName}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* 自定义图片 */}
               <div className="space-y-3">
-                <Label className="text-sm font-medium">自定义图片</Label>
+                <Label className="text-sm font-medium">{t('settings.bg.customImage')}</Label>
 
                 {/* 上传按钮 */}
                 <div className="flex gap-2">
@@ -291,14 +346,14 @@ export function SettingsSheet({
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <Upload className="w-4 h-4" />
-                    上传本地图片
+                    {t('settings.bg.uploadLocal')}
                   </Button>
                 </div>
 
                 {/* 分隔线 */}
                 <div className="flex items-center gap-2">
                   <div className="flex-1 h-px bg-border" />
-                  <span className="text-xs text-muted-foreground">或</span>
+                  <span className="text-xs text-muted-foreground">{t('settings.bg.or')}</span>
                   <div className="flex-1 h-px bg-border" />
                 </div>
 
@@ -306,7 +361,7 @@ export function SettingsSheet({
                 <Input
                   value={imageUrl}
                   onChange={(e) => handleImageUrlChange(e.target.value)}
-                  placeholder="粘贴图片 URL..."
+                  placeholder={t('settings.bg.pasteUrl')}
                   className="w-full"
                 />
 
@@ -315,7 +370,7 @@ export function SettingsSheet({
                   <div className="relative aspect-video rounded-lg overflow-hidden border border-white/20 dark:border-black/10">
                     <img
                       src={imageUrl}
-                      alt="当前背景"
+                      alt={t('settings.bg.currentBg')}
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
@@ -324,7 +379,7 @@ export function SettingsSheet({
                     />
                     <div className="absolute inset-0 bg-linear-to-t from-black/50 to-transparent" />
                     <span className="absolute bottom-2 left-2 text-xs text-white">
-                      当前背景
+                      {t('settings.bg.currentBg')}
                     </span>
                   </div>
                 )}
@@ -334,18 +389,26 @@ export function SettingsSheet({
               <div className="space-y-2">
                 <Label className="text-sm font-medium flex items-center gap-1.5">
                   <Maximize2 className="w-3.5 h-3.5" />
-                  图片适配方式
+                  {t('settings.bg.size')}
                 </Label>
                 <Select value={size} onValueChange={(v) => handleSizeChange(v as BackgroundSize)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {SIZE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
+                    {SIZE_OPTIONS.map((opt) => {
+                      const SIZE_KEY = {
+                        cover: 'cover',
+                        contain: 'contain',
+                        auto: 'auto',
+                        '100% 100%': 'stretch',
+                      } as const;
+                      return (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {t(`settings.bg.sizeOptions.${SIZE_KEY[opt.value]}`)}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -353,7 +416,7 @@ export function SettingsSheet({
               {/* 透明度 */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
-                  背景透明度: {Math.round(opacity * 100)}%
+                  {t('settings.bg.opacityPercent', { p: Math.round(opacity * 100) })}
                 </Label>
                 <Input
                   type="range"
@@ -377,7 +440,7 @@ export function SettingsSheet({
               className="w-full gap-1.5 text-muted-foreground hover:text-foreground"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              重置为默认
+              {t('settings.bg.resetDefault')}
             </Button>
           </div>
         </div>

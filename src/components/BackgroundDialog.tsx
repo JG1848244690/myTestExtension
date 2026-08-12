@@ -21,6 +21,7 @@ import type {
   BackgroundSize,
 } from '@/src/utils/types';
 import { Image, Palette, Maximize2, Trash2, RotateCcw } from 'lucide-react';
+import { useI18n } from '@/src/i18n';
 
 interface BackgroundDialogProps {
   open: boolean;
@@ -29,34 +30,34 @@ interface BackgroundDialogProps {
   onSave: (setting: BackgroundSetting) => void;
 }
 
-// 预设背景色
+// 预设背景色 — name 字段仅作 fallback key,实际渲染走 i18n
 const PRESET_COLORS = [
-  { name: '深夜蓝', color: '#1a1a2e' },
-  { name: '星空紫', color: '#16213e' },
-  { name: '极客黑', color: '#0f0f23' },
-  { name: '薄荷绿', color: '#1e3a3a' },
-  { name: '暖阳橙', color: '#2d2d44' },
-  { name: '玫瑰粉', color: '#2e1f2e' },
-  { name: '冰川蓝', color: '#1a2a3a' },
-  { name: '森林绿', color: '#1a2e1a' },
+  { key: 'midNightBlue', name: '深夜蓝', color: '#1a1a2e' },
+  { key: 'starPurple', name: '星空紫', color: '#16213e' },
+  { key: 'geekBlack', name: '极客黑', color: '#0f0f23' },
+  { key: 'mintGreen', name: '薄荷绿', color: '#1e3a3a' },
+  { key: 'warmOrange', name: '暖阳橙', color: '#2d2d44' },
+  { key: 'rosePink', name: '玫瑰粉', color: '#2e1f2e' },
+  { key: 'glacierBlue', name: '冰川蓝', color: '#1a2a3a' },
+  { key: 'forestGreen', name: '森林绿', color: '#1a2e1a' },
 ];
 
 // 预设背景图
 const PRESET_IMAGES = [
-  { name: '星空', url: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920&q=80' },
-  { name: '山脉', url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80' },
-  { name: '城市', url: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1920&q=80' },
-  { name: '海浪', url: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=1920&q=80' },
-  { name: '森林', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80' },
-  { name: '日落', url: 'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920&q=80' },
+  { key: 'starry', name: '星空', url: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920&q=80' },
+  { key: 'mountain', name: '山脉', url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&q=80' },
+  { key: 'city', name: '城市', url: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1920&q=80' },
+  { key: 'wave', name: '海浪', url: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=1920&q=80' },
+  { key: 'forest', name: '森林', url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80' },
+  { key: 'sunset', name: '日落', url: 'https://images.unsplash.com/photo-1495616811223-4d98c6e9c869?w=1920&q=80' },
 ];
 
-// 适配方式选项
-const SIZE_OPTIONS: { value: BackgroundSize; label: string }[] = [
-  { value: 'cover', label: '覆盖 (cover)' },
-  { value: 'contain', label: '适应 (contain)' },
-  { value: 'auto', label: '原始大小 (auto)' },
-  { value: '100% 100%', label: '拉伸 (100% 100%)' },
+// 适配方式选项 — label 字段仅作 fallback key,实际渲染走 i18n
+const SIZE_OPTIONS: { value: BackgroundSize; key: 'cover' | 'contain' | 'auto' | 'stretch'; label: string }[] = [
+  { value: 'cover', key: 'cover', label: '覆盖 (cover)' },
+  { value: 'contain', key: 'contain', label: '适应 (contain)' },
+  { value: 'auto', key: 'auto', label: '原始大小 (auto)' },
+  { value: '100% 100%', key: 'stretch', label: '拉伸 (100% 100%)' },
 ];
 
 export function BackgroundDialog({
@@ -65,6 +66,7 @@ export function BackgroundDialog({
   setting,
   onSave,
 }: BackgroundDialogProps) {
+  const { t } = useI18n();
   const [type, setType] = useState<BackgroundType>(setting.type || 'none');
   const [color, setColor] = useState(setting.color || '#1a1a2e');
   const [imageUrl, setImageUrl] = useState(setting.imageUrl || '');
@@ -104,14 +106,14 @@ export function BackgroundDialog({
         <DialogHeader className="pb-4">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Palette className="w-5 h-5" />
-            新标签页背景设置
+            {t('settings.bg.title')}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* 背景类型选择 */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium">背景类型</Label>
+            <Label className="text-sm font-medium">{t('settings.bg.typeLabel')}</Label>
             <div className="flex gap-2">
               <Button
                 variant={type === 'none' ? 'default' : 'outline'}
@@ -119,7 +121,7 @@ export function BackgroundDialog({
                 onClick={() => setType('none')}
                 className="flex-1"
               >
-                无
+                {t('settings.bg.type.none')}
               </Button>
               <Button
                 variant={type === 'color' ? 'default' : 'outline'}
@@ -128,7 +130,7 @@ export function BackgroundDialog({
                 className="flex-1 gap-1.5"
               >
                 <Palette className="w-3.5 h-3.5" />
-                纯色
+                {t('settings.bg.type.color')}
               </Button>
               <Button
                 variant={type === 'image' ? 'default' : 'outline'}
@@ -137,7 +139,7 @@ export function BackgroundDialog({
                 className="flex-1 gap-1.5"
               >
                 <Image className="w-3.5 h-3.5" />
-                图片
+                {t('settings.bg.type.image')}
               </Button>
             </div>
           </div>
@@ -146,7 +148,7 @@ export function BackgroundDialog({
           {type === 'color' && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-sm font-medium">选择预设颜色</Label>
+                <Label className="text-sm font-medium">{t('settings.bg.presetColors')}</Label>
                 <div className="flex flex-wrap gap-3">
                   {PRESET_COLORS.map((preset) => (
                     <button
@@ -158,13 +160,13 @@ export function BackgroundDialog({
                           : 'border-transparent hover:scale-105'
                       }`}
                       style={{ backgroundColor: preset.color }}
-                      title={preset.name}
+                      title={t(`settings.bg.presetColor.${preset.key}`)}
                     />
                   ))}
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-medium">自定义颜色</Label>
+                <Label className="text-sm font-medium">{t('settings.bg.customColor')}</Label>
                 <div className="flex items-center gap-3">
                   <Input
                     type="color"
@@ -188,7 +190,7 @@ export function BackgroundDialog({
             <div className="space-y-5">
               {/* 预设图片 */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">预设背景</Label>
+                <Label className="text-sm font-medium">{t('settings.bg.presetImages')}</Label>
                 <div className="grid grid-cols-2 gap-3">
                   {PRESET_IMAGES.map((preset) => (
                     <button
@@ -199,15 +201,15 @@ export function BackgroundDialog({
                           ? 'border-primary ring-2 ring-primary/30'
                           : 'border-transparent hover:ring-2 hover:ring-muted'
                       }`}
-                      title={preset.name}
+                      title={t(`settings.bg.presetImage.${preset.key}`)}
                     >
                       <img
                         src={preset.url}
-                        alt={preset.name}
+                        alt={t(`settings.bg.presetImage.${preset.key}`)}
                         className="w-full h-full object-cover"
                       />
                       <span className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent text-white text-sm py-2 text-center font-medium">
-                        {preset.name}
+                        {t(`settings.bg.presetImage.${preset.key}`)}
                       </span>
                     </button>
                   ))}
@@ -216,11 +218,11 @@ export function BackgroundDialog({
 
               {/* 自定义 URL */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">自定义图片链接</Label>
+                <Label className="text-sm font-medium">{t('settings.bg.customImage')}</Label>
                 <Input
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="粘贴图片 URL..."
+                  placeholder={t('settings.bg.pasteUrl')}
                   className="w-full"
                 />
               </div>
@@ -229,7 +231,7 @@ export function BackgroundDialog({
               <div className="space-y-2">
                 <Label className="text-sm font-medium flex items-center gap-1.5">
                   <Maximize2 className="w-3.5 h-3.5" />
-                  图片适配方式
+                  {t('settings.bg.size')}
                 </Label>
                 <Select value={size} onValueChange={(v) => setSize(v as BackgroundSize)}>
                   <SelectTrigger className="w-full">
@@ -238,7 +240,7 @@ export function BackgroundDialog({
                   <SelectContent>
                     {SIZE_OPTIONS.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
+                        {t(`settings.bg.sizeOptions.${opt.key}`)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -248,7 +250,7 @@ export function BackgroundDialog({
               {/* 透明度 */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
-                  背景透明度: {Math.round(opacity * 100)}%
+                  {t('settings.bg.opacityPercent', { p: Math.round(opacity * 100) })}
                 </Label>
                 <Input
                   type="range"
@@ -268,14 +270,14 @@ export function BackgroundDialog({
         <div className="flex justify-between items-center pt-4 border-t mt-6">
           <Button variant="ghost" onClick={handleReset} size="sm" className="gap-1.5 text-muted-foreground">
             <RotateCcw className="w-3.5 h-3.5" />
-            重置
+            {t('settings.bg.reset')}
           </Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} size="sm">
-              取消
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleSave} size="sm">
-              保存
+              {t('common.save')}
             </Button>
           </div>
         </div>

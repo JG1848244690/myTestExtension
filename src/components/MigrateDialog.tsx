@@ -8,6 +8,7 @@ import {
 import { Button } from '@/src/components/ui/button';
 import type { ShortcutGroup } from '@/src/utils/types';
 import { cn } from '@/src/lib/utils';
+import { useI18n } from '@/src/i18n';
 
 interface MigrateDialogProps {
   open: boolean;
@@ -26,6 +27,7 @@ export function MigrateDialog({
   onMigrate,
   selectedCount,
 }: MigrateDialogProps) {
+  const { t } = useI18n();
   const handleSelect = (targetGroupId: string | null) => {
     onMigrate(targetGroupId);
     onOpenChange(false);
@@ -47,9 +49,9 @@ export function MigrateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[360px]">
         <DialogHeader>
-          <DialogTitle>迁移到分组</DialogTitle>
+          <DialogTitle>{t('groups.migrateTitle')}</DialogTitle>
           <DialogDescription>
-            选择目标分组，将 {selectedCount} 个快捷方式迁移过去
+            {t('groups.migrateDesc', { n: selectedCount })}
           </DialogDescription>
         </DialogHeader>
         <div className="max-h-[300px] overflow-y-auto mt-2">
@@ -62,7 +64,7 @@ export function MigrateDialog({
                 onClick={() => handleSelect(null)}
               >
                 <div className="w-4 h-4 rounded bg-muted border border-dashed border-white/20 dark:border-black/10" />
-                <span>未分组</span>
+                <span>{t('groups.ungrouped')}</span>
               </Button>
             )}
 
@@ -83,7 +85,7 @@ export function MigrateDialog({
                 <div className="flex flex-col items-start">
                   <span>{group.name}</span>
                   <span className="text-xs text-muted-foreground">
-                    {group.shortcutIds.length} 个快捷方式
+                    {t('groups.shortcutCount', { n: group.shortcutIds.length })}
                   </span>
                 </div>
               </Button>
@@ -91,7 +93,7 @@ export function MigrateDialog({
 
             {availableGroups.length === 0 && currentGroupId === null && (
               <div className="text-center py-8 text-muted-foreground text-sm">
-                没有可迁移的目标分组
+                {t('groups.noMigrateTarget')}
               </div>
             )}
           </div>

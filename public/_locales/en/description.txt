@@ -1,0 +1,13 @@
+Speed Dial for your Chrome new tab. Replace the default page with a clean, fast, customizable dashboard. Built by xy for people who want their new tab back. Speed Dial bookmarks search and wallpapers in one lightweight extension, no ads, no trackers, no clutter.
+
+Add any page to your bookmarks in one keystroke. Press the global shortcut (Ctrl+Y on Windows, Command+Y on Mac) and the popup opens straight to the Add tab. The current URL is already filled in, you type a name, optionally pick a group, hit save. No context switch, no copy paste, no extra clicks. Inside the popup, press Ctrl+1 through Ctrl+5 and the first five matching shortcuts open directly, so your favorite sites are one keystroke away from anywhere in Chrome.
+
+Save and restore tab sessions across devices. The Sessions tab captures every open tab into a snapshot you can name, and restores the whole set in one click. Sign in with Google and your sessions sync to the cloud, so the research you were doing on your laptop is waiting on your desktop when you open the popup the next morning. Local sessions are stored on your device first, cloud sync is opt-in, and you can upload or download manually whenever you want.
+
+What you get inside the new tab. Grouped bookmarks and favorites in a layout you control. Drag to reorder, batch manage, and color your groups so the important stuff stands out. Multi-engine instant search across Google, Bing, and Baidu with live suggestions and a private on-device history. A background that fits your day — pick a solid color, a preset wallpaper, or upload your own image. Import from Chrome bookmarks in one click or back up to a JSON file. Optional cloud sync to keep your shortcuts with you on every device, sign in only when you want sync.
+
+Privacy by default. Your bookmarks, search history, sessions, and settings stay on your device. Cloud sync is opt-in, no account required to use the extension. No ads, no trackers, no analytics fingerprinting, no third-party data sharing. The dark UI is gentle on the eyes, day or night, and you can customize opacity to make any wallpaper readable.
+
+Designed for real use. Power users with hundreds of bookmarks get a real Speed Dial with folders, drag and drop, and batch operations. Minimalists get a clean new tab with the chrome they actually need. Anyone tired of cluttered new tab extensions that push affiliate links and premium upsells gets a focused alternative. The default dark mode means the new tab looks good the moment you install it, no setup required.
+
+Built by xy. This extension started as my own daily-driver Speed Dial. It is small, focused, and built to disappear into your workflow while staying out of your way. New tab page, done right.

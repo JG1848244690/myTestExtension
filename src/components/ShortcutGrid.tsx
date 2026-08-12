@@ -8,6 +8,7 @@ import { Input } from '@/src/components/ui/input';
 import { useDebounce } from '@/src/hooks/useDebounce';
 import { UI_CONFIG } from '@/src/utils/constants';
 import type { Shortcut, LayoutType } from '@/src/utils/types';
+import { useI18n } from '@/src/i18n';
 
 interface ShortcutGridProps {
   shortcuts: Shortcut[];
@@ -26,6 +27,7 @@ export function ShortcutGrid({
   onRemove,
   onBatchRemove
 }: ShortcutGridProps) {
+  const { t } = useI18n();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingShortcut, setEditingShortcut] = useState<Shortcut | null>(null);
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -119,10 +121,10 @@ export function ShortcutGrid({
                   onCheckedChange={handleSelectAll}
                   className="mr-2"
                 />
-                {selectedIds.size === filteredShortcuts.length ? '取消全选' : '全选'}
+                {selectedIds.size === filteredShortcuts.length ? t('common.deselectAll') : t('common.selectAll')}
               </Button>
               <span className="text-sm text-muted-foreground">
-                已选择 {selectedIds.size} 项
+                {t('common.selectedCount', { n: selectedIds.size })}
               </span>
             </>
           ) : (
@@ -130,7 +132,7 @@ export function ShortcutGrid({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="搜索快捷方式..."
+                placeholder={t('shortcuts.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 pr-8 h-9"
@@ -157,7 +159,7 @@ export function ShortcutGrid({
                 disabled={selectedIds.size === 0}
               >
                 <Trash2 className="w-4 h-4 mr-1" />
-                删除 ({selectedIds.size})
+                {t('shortcuts.deleteSelected', { n: selectedIds.size })}
               </Button>
               <Button
                 variant="outline"
@@ -165,7 +167,7 @@ export function ShortcutGrid({
                 onClick={toggleSelectMode}
               >
                 <X className="w-4 h-4 mr-1" />
-                取消
+                {t('common.cancel')}
               </Button>
             </>
           ) : (
@@ -176,7 +178,7 @@ export function ShortcutGrid({
                   size="sm"
                   onClick={toggleSelectMode}
                 >
-                  批量管理
+                  {t('common.batchManage')}
                 </Button>
               )}
               <Button
@@ -185,7 +187,7 @@ export function ShortcutGrid({
                 onClick={handleAddClick}
               >
                 <Plus className="w-4 h-4 mr-1" />
-                添加
+                {t('common.add')}
               </Button>
             </>
           )}
@@ -198,8 +200,8 @@ export function ShortcutGrid({
         {debouncedQuery.trim() && (
           <div className="mb-2 text-sm text-muted-foreground">
             {filteredShortcuts.length > 0
-              ? `找到 ${filteredShortcuts.length} 个结果`
-              : '无匹配结果'}
+              ? t('common.foundResults', { n: filteredShortcuts.length })
+              : t('common.noResults')}
           </div>
         )}
 
@@ -240,7 +242,7 @@ export function ShortcutGrid({
                 <Plus className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
               <span className="mt-2 text-xs text-muted-foreground group-hover:text-primary transition-colors">
-                添加
+                {t('common.add')}
               </span>
             </Button>
           )}

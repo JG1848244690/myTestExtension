@@ -41,7 +41,8 @@ export async function initSettingsStore(): Promise<void> {
         current.searchEngine === next.searchEngine &&
         current.iconsPerRow === next.iconsPerRow &&
         current.layout === next.layout &&
-        current.background === next.background
+        current.background === next.background &&
+        current.language === next.language
       ) {
         return;
       }

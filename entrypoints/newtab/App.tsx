@@ -16,12 +16,14 @@ import { NEWTAB_NAVIGATED_EVENT, notifyNewtabNavigated } from '@/src/utils/navig
 import { readLastPullAt } from '@/src/utils/syncDirty';
 import { useDirty } from '@/src/hooks/useSync';
 import type { BackgroundSetting } from '@/src/utils/types';
+import { useI18n } from '@/src/i18n';
 
 // 首次拉取节流:30min 内重复开 newtab 不重复拉(避免接口被打爆)
 const PULL_INTERVAL_MS = 30 * 60 * 1000;
 
 function App() {
   const storesReady = useStoresReady();
+  const { t } = useI18n();
 
   const { shortcuts, addShortcut, addShortcuts, updateShortcut, removeShortcut, removeShortcuts, importShortcuts } =
     useShortcutsStore();
@@ -82,7 +84,7 @@ function App() {
   if (!mounted || !storesReady) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse">加载中...</div>
+        <div className="animate-pulse">{t('common.loading')}</div>
       </div>
     );
   }
@@ -171,7 +173,7 @@ function App() {
         </div>
 
         <div className="fixed bottom-4 left-0 right-0 text-center text-muted-foreground text-sm">
-          序章 · {shortcuts.length} 个快捷方式
+          {t('common.appName')} · {t('common.shortcutCount', { n: shortcuts.length })}
         </div>
       </div>
 

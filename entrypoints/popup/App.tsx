@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useShortcutsStore } from '@/src/hooks/useShortcutsStore';
 import { useGroupsStore } from '@/src/hooks/useGroupsStore';
 import { useStoresReady } from '@/src/lib/useStoresReady';
@@ -8,10 +8,11 @@ import { Input } from '@/src/components/ui/input';
 import type { Shortcut, ShortcutGroup } from '@/src/utils/types';
 import { cn } from '@/src/lib/utils';
 import SessionTab from './SessionTab';
-
+import { useI18n } from '@/src/i18n';
 
 // 设置组件
 function SettingsTab() {
+  const { t } = useI18n();
   const openShortcutsSettings = () => {
     browser.tabs.create({ url: 'chrome://extensions/shortcuts' });
   };
@@ -21,10 +22,10 @@ function SettingsTab() {
       <div className="border border-white/20 dark:border-black/10 rounded-lg p-3 space-y-2">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Keyboard className="w-4 h-4" />
-          快捷键设置
+          {t('popup.settings.title')}
         </div>
         <p className="text-xs text-muted-foreground">
-          设置全局快捷键快速打开搜索面板
+          {t('popup.settings.description')}
         </p>
         <Button
           variant="outline"
@@ -32,12 +33,12 @@ function SettingsTab() {
           onClick={openShortcutsSettings}
           className="w-full gap-2"
         >
-          前往设置快捷键
+          {t('popup.settings.openButton')}
           <ExternalLink className="w-3 h-3" />
         </Button>
       </div>
       <div className="text-xs text-muted-foreground p-3 bg-muted/50 rounded-lg">
-        更多设置（背景、布局等）请在 <strong>新标签页</strong> 中点击右上角设置图标进行配置
+        {t('popup.settings.moreHintPrefix')} <strong>{t('popup.settings.newTabLabel')}</strong> {t('popup.settings.moreHintSuffix')}
       </div>
     </div>
   );
@@ -65,6 +66,7 @@ function AddTab({
   saved: boolean;
   onAdd: () => void;
 }) {
+  const { t } = useI18n();
   const addInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -74,24 +76,24 @@ function AddTab({
   return (
     <div className="p-3 space-y-3">
       <div className="space-y-2">
-        <label className="text-xs text-muted-foreground">当前网址</label>
+        <label className="text-xs text-muted-foreground">{t('popup.add.currentUrl')}</label>
         <div className="text-xs p-2 bg-muted/50 rounded-lg truncate">
-          {currentUrl || '无法获取当前网址'}
+          {currentUrl || t('popup.add.cannotGetUrl')}
         </div>
       </div>
       <div className="space-y-2">
-        <label className="text-xs text-muted-foreground">名称</label>
+        <label className="text-xs text-muted-foreground">{t('popup.add.name')}</label>
         <Input
           ref={addInputRef}
           value={shortcutName}
           onChange={(e) => setShortcutName(e.target.value)}
-          placeholder="输入快捷方式名称"
+          placeholder={t('popup.add.namePlaceholder')}
           className="h-9"
           autoFocus
         />
       </div>
       <div className="space-y-2">
-        <label className="text-xs text-muted-foreground">选择分组（可选）</label>
+        <label className="text-xs text-muted-foreground">{t('popup.add.groupOptional')}</label>
         <div className="grid grid-cols-2 gap-1.5">
           <button
             onClick={() => setSelectedGroupId('')}
@@ -103,7 +105,7 @@ function AddTab({
             )}
           >
             <Globe className="w-3 h-3" />
-            不分组
+            {t('popup.add.noGroup')}
           </button>
           {groups.map(group => (
             <button
@@ -130,17 +132,17 @@ function AddTab({
         {saved ? (
           <>
             <Check className="w-4 h-4" />
-            已添加
+            {t('popup.add.saved')}
           </>
         ) : saving ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            保存中...
+            {t('popup.add.saving')}
           </>
         ) : (
           <>
             <Plus className="w-4 h-4" />
-            添加到快捷方式
+            {t('popup.add.addButton')}
           </>
         )}
       </Button>
@@ -150,6 +152,7 @@ function AddTab({
 
 function App() {
   const storesReady = useStoresReady();
+  const { t } = useI18n();
   const { shortcuts, addShortcut } = useShortcutsStore();
   const { groups, addShortcutToGroup } = useGroupsStore();
 
@@ -191,7 +194,8 @@ function App() {
       setSaving(false);
     }
   };
-// 打开网站
+
+  // 打开网站
   const openUrl = (url: string) => {
     const finalUrl = url.startsWith('http') ? url : `https://${url}`;
     browser.tabs.create({ url: finalUrl });
@@ -255,12 +259,12 @@ function App() {
     <div className="w-[380px] h-[400px] bg-background text-foreground flex flex-col relative">
       {/* 头部 */}
       <div className="flex items-center justify-between p-3 border-b border-white/20 dark:border-black/10">
-        <h1 className="text-base font-bold">序言</h1>
+        <h1 className="text-base font-bold">{t('popup.appName')}</h1>
         <Button
           variant="ghost"
           size="icon"
           onClick={() => browser.tabs.create({ url: browser.runtime.getURL('/newtab.html') })}
-          title="打开新标签页"
+          title={t('popup.openNewTab')}
           className="h-7 w-7"
         >
           <ExternalLink className="w-4 h-4" />
@@ -278,7 +282,7 @@ function App() {
               : 'text-muted-foreground hover:text-foreground'
           )}
         >
-          快捷搜索
+          {t('popup.tabs.search')}
         </button>
         <button
           onClick={() => setActiveTab('add')}
@@ -289,7 +293,7 @@ function App() {
               : 'text-muted-foreground hover:text-foreground'
           )}
         >
-          快捷添加
+          {t('popup.tabs.add')}
         </button>
         <button
           onClick={() => setActiveTab('sessions')}
@@ -301,7 +305,7 @@ function App() {
           )}
         >
           <History className="w-3.5 h-3.5" />
-          会话
+          {t('popup.tabs.sessions')}
         </button>
         <button
           onClick={() => setActiveTab('settings')}
@@ -312,7 +316,7 @@ function App() {
               : 'text-muted-foreground hover:text-foreground'
           )}
         >
-          设置
+          {t('popup.tabs.settings')}
         </button>
       </div>
 
@@ -326,7 +330,7 @@ function App() {
               <Input
                 ref={inputRef}
                 type="text"
-                placeholder="搜索快捷方式或网址..."
+                placeholder={t('popup.search.placeholder')}
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -364,7 +368,7 @@ function App() {
                   </button>
                 ))}
                 <div className="text-xs text-muted-foreground px-2 py-1">
-                  按 ctrl+ <kbd className="px-1 py-0.5 rounded bg-muted text-[10px] font-mono">1-5</kbd> 快速打开
+                  {t('popup.search.ctrlHint')}
                 </div>
               </div>
             )}
@@ -372,12 +376,12 @@ function App() {
             {/* 空状态 */}
             {(!storesReady) ? (
               <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
-                加载中...
+                {t('popup.search.loading')}
               </div>
             ) : !searchQuery && (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                 <Search className="w-8 h-8 mb-2 opacity-50" />
-                <p className="text-sm">输入关键词搜索快捷方式</p>
+                <p className="text-sm">{t('popup.search.emptyHint')}</p>
               </div>
             )}
           </div>
@@ -409,7 +413,7 @@ function App() {
           rel="noopener noreferrer"
           className="text-xs text-primary hover:underline"
         >
-          序言-xy
+          {t('popup.footerBrand')}
         </a>
       </div>
     </div>
@@ -417,9 +421,3 @@ function App() {
 }
 
 export default App;
-
-
-
-
-
-

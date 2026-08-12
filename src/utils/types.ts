@@ -90,6 +90,7 @@ export interface Settings {
   iconsPerRow: number;
   layout: LayoutType; // 布局类型
   background?: BackgroundSetting; // 背景设置
+  language?: 'zh_CN' | 'en'; // UI 语言;未设置时按 navigator.language 自动推断
 }
 
 // 页面类型

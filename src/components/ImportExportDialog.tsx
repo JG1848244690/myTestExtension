@@ -13,6 +13,7 @@ import type { Shortcut, ShortcutGroup, ExportData } from '@/src/utils/types';
 import { exportData, parseImportFile, mergeImportData, replaceImportData, type ImportMode } from '@/src/utils/importExport';
 import { sendMessage } from '@/messaging';
 import { useSyncAuth, useDirty } from '@/src/hooks/useSync';
+import { useI18n } from '@/src/i18n';
 
 interface ImportExportDialogProps {
   open: boolean;
@@ -31,6 +32,7 @@ export function ImportExportDialog({
   onImport,
   addShortcuts,
 }: ImportExportDialogProps) {
+  const { t } = useI18n();
   const [importMode, setImportMode] = useState<ImportMode>('merge');
   const [previewData, setPreviewData] = useState<ExportData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,7 +62,7 @@ export function ImportExportDialog({
       const data = await parseImportFile(file);
       setPreviewData(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '文件解析失败');
+      setError(err instanceof Error ? err.message : t('importExport.parseFail'));
       setPreviewData(null);
     }
 
@@ -94,25 +96,25 @@ export function ImportExportDialog({
       const result = await sendMessage('shortcuts/import-from-newtab');
 
       if (!result.success) {
-        setError(result.error || '导入失败');
+        setError(result.error || t('importExport.chromeImport'));
         return;
       }
 
       if (result.shortcuts.length === 0) {
-        setError('未找到可导入的书签');
+        setError(t('importExport.chromeImportNone'));
         return;
       }
 
       const importedCount = await addShortcuts(result.shortcuts);
 
       if (importedCount === 0) {
-        setSuccessMsg('没有新书签需要导入（已跳过重复）');
+        setSuccessMsg(t('importExport.chromeImportSkipAll'));
       } else {
         const skipped = result.shortcuts.length - importedCount;
-        setSuccessMsg(`成功从 Chrome 书签导入 ${importedCount} 个${skipped > 0 ? `（跳过 ${skipped} 个重复）` : ''}`);
+        setSuccessMsg(t('importExport.chromeImportSuccess', { n: importedCount }) + (skipped > 0 ? t('importExport.chromeImportSkip', { n: skipped }) : ''));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Chrome 书签导入失败');
+      setError(err instanceof Error ? err.message : t('importExport.chromeImportFail'));
     } finally {
       setIsChromeImporting(false);
     }
@@ -125,31 +127,31 @@ export function ImportExportDialog({
     try {
       const res = await sendMessage('sync/upload', 'bookmarks');
       if (res.success) {
-        setSyncMsg('已上传到云端');
+        setSyncMsg(t('importExport.uploadSuccess'));
       } else {
-        setSyncErr(res.error || '上传失败');
+        setSyncErr(res.error || t('importExport.uploadFail'));
       }
     } catch (err) {
-      setSyncErr(err instanceof Error ? err.message : '上传失败');
+      setSyncErr(err instanceof Error ? err.message : t('importExport.uploadFail'));
     } finally {
       setSyncBusy(null);
     }
   };
 
   const handleSyncDownload = async () => {
-    if (!window.confirm('从云端下载将用云端书签覆盖本地,确定?')) return;
+    if (!window.confirm(t('importExport.downloadConfirm'))) return;
     setSyncBusy('download');
     setSyncMsg(null);
     setSyncErr(null);
     try {
       const res = await sendMessage('sync/download', 'bookmarks');
       if (res.success) {
-        setSyncMsg('已从云端下载(覆盖本地)');
+        setSyncMsg(t('importExport.downloadSuccess'));
       } else {
-        setSyncErr(res.error || '下载失败');
+        setSyncErr(res.error || t('importExport.downloadFail'));
       }
     } catch (err) {
-      setSyncErr(err instanceof Error ? err.message : '下载失败');
+      setSyncErr(err instanceof Error ? err.message : t('importExport.downloadFail'));
     } finally {
       setSyncBusy(null);
     }
@@ -166,9 +168,9 @@ export function ImportExportDialog({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>导入导出书签</DialogTitle>
+          <DialogTitle>{t('importExport.title')}</DialogTitle>
           <DialogDescription>
-            备份或恢复你的分组和书签数据
+            {t('importExport.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -178,16 +180,16 @@ export function ImportExportDialog({
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="font-medium flex items-center gap-1.5">
-                  书签云同步
+                  {t('importExport.cloudSync')}
                   {bookmarksDirty && (
                     <span
                       className="w-2 h-2 rounded-full bg-red-500"
-                      title="有未同步到云端的本地书签"
+                      title={t('importExport.cloudSyncDirty')}
                     />
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {user ? `已登录:${user.email}` : '登录后可在多设备间同步书签'}
+                  {user ? t('importExport.loggedIn', { email: user.email }) : t('importExport.loggedOut')}
                 </p>
               </div>
               {user ? (
@@ -199,7 +201,7 @@ export function ImportExportDialog({
                   className="h-7 text-xs gap-1 shrink-0"
                 >
                   <LogOut className="w-3 h-3" />
-                  退出
+                  {t('importExport.logout')}
                 </Button>
               ) : (
                 <Button
@@ -214,7 +216,7 @@ export function ImportExportDialog({
                   ) : (
                     <Chrome className="w-3 h-3" />
                   )}
-                  登录
+                  {t('importExport.login')}
                 </Button>
               )}
             </div>
@@ -233,7 +235,7 @@ export function ImportExportDialog({
                   ) : (
                     <Upload className="w-3.5 h-3.5" />
                   )}
-                  上传到云
+                  {t('importExport.uploadToCloud')}
                 </Button>
                 <Button
                   variant="outline"
@@ -247,7 +249,7 @@ export function ImportExportDialog({
                   ) : (
                     <Download className="w-3.5 h-3.5" />
                   )}
-                  从云下载
+                  {t('importExport.downloadFromCloud')}
                 </Button>
               </div>
             )}
@@ -275,23 +277,23 @@ export function ImportExportDialog({
           {/* 导出按钮 */}
           <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/30">
             <div>
-              <p className="font-medium">导出数据</p>
+              <p className="font-medium">{t('importExport.exportTitle')}</p>
               <p className="text-sm text-muted-foreground">
-                导出 {shortcuts.length} 个书签，{groups.length} 个分组
+                {t('importExport.exportSummary', { shortcuts: shortcuts.length, groups: groups.length })}
               </p>
             </div>
             <Button onClick={handleExport} variant="outline" size="sm">
               <Download className="w-4 h-4 mr-2" />
-              导出
+              {t('importExport.export')}
             </Button>
           </div>
 
           {/* 从 Chrome 书签导入 */}
           <div className="flex items-center justify-between p-4 rounded-xl border bg-muted/30">
             <div>
-              <p className="font-medium">从 Chrome 书签导入</p>
+              <p className="font-medium">{t('importExport.chromeImportTitle')}</p>
               <p className="text-sm text-muted-foreground">
-                一键同步浏览器书签栏
+                {t('importExport.chromeImportDesc')}
               </p>
             </div>
             <Button
@@ -305,7 +307,7 @@ export function ImportExportDialog({
               ) : (
                 <Chrome className="w-4 h-4 mr-2" />
               )}
-              导入
+              {t('importExport.chromeImport')}
             </Button>
           </div>
 
@@ -313,8 +315,8 @@ export function ImportExportDialog({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium">从备份文件导入</p>
-                <p className="text-xs text-muted-foreground">支持 .json 格式</p>
+                <p className="font-medium">{t('importExport.fileImportTitle')}</p>
+                <p className="text-xs text-muted-foreground">{t('importExport.fileImportDesc')}</p>
               </div>
               <input
                 ref={fileInputRef}
@@ -329,7 +331,7 @@ export function ImportExportDialog({
                 size="sm"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                选择文件
+                {t('importExport.selectFile')}
               </Button>
             </div>
 
@@ -339,7 +341,7 @@ export function ImportExportDialog({
                 <div className="flex items-center gap-2 text-sm">
                   <Check className="w-4 h-4 text-green-500" />
                   <span>
-                    {previewData.shortcuts.length} 个书签，{previewData.groups.length} 个分组
+                    {t('importExport.previewSummary', { shortcuts: previewData.shortcuts.length, groups: previewData.groups.length })}
                   </span>
                 </div>
 
@@ -351,7 +353,7 @@ export function ImportExportDialog({
                     onClick={() => setImportMode('merge')}
                     className="flex-1"
                   >
-                    合并
+                    {t('importExport.mergeMode')}
                   </Button>
                   <Button
                     variant={importMode === 'replace' ? 'default' : 'outline'}
@@ -359,13 +361,13 @@ export function ImportExportDialog({
                     onClick={() => setImportMode('replace')}
                     className="flex-1"
                   >
-                    替换
+                    {t('importExport.replaceMode')}
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {importMode === 'merge'
-                    ? '合并：保留现有数据，添加新数据（跳过重复URL）'
-                    : '替换：清空现有数据，使用导入的数据'}
+                    ? t('importExport.mergeModeDesc')
+                    : t('importExport.replaceModeDesc')}
                 </p>
               </div>
             )}
@@ -390,10 +392,10 @@ export function ImportExportDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
-            关闭
+            {t('common.close')}
           </Button>
           <Button onClick={handleImport} disabled={!previewData}>
-            确认导入
+            {t('importExport.confirmImport')}
           </Button>
         </DialogFooter>
       </DialogContent>

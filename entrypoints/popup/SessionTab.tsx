@@ -1,12 +1,14 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Save, RotateCcw, Trash2, History, ExternalLink, Loader2, AlertCircle, LogIn, LogOut, Mail, Upload, Download, Check } from 'lucide-react';
 import type { SyncUser } from '@/src/utils/googleAuth';
 import { Button } from '@/src/components/ui/button';
 import { sendMessage } from '@/messaging';
 import { useDirty } from '@/src/hooks/useSync';
 import type { TabSession } from '@/src/utils/types';
+import { useI18n } from '@/src/i18n';
 
 function SessionTab() {
+  const { t } = useI18n();
   const [sessions, setSessions] = useState<TabSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -37,7 +39,7 @@ function SessionTab() {
       setSessions(list);
     } catch (err) {
       console.error('[SessionTab] Failed to load sessions:', err);
-      setError('加载会话失败');
+      setError(t('popup.session.loadFail'));
     } finally {
       setLoading(false);
     }
@@ -46,6 +48,8 @@ function SessionTab() {
   useEffect(() => {
     loadCurrentUser();
     loadSessions();
+    // 故意仅首挂载触发;loadSessions 内部已自带 i18n fallback,语言切换后下一次打开会自动用新文案
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 保存当前标签页
@@ -57,11 +61,11 @@ function SessionTab() {
       if (result.success && result.session) {
         await loadSessions();
       } else {
-        setError(result.error || '保存失败');
+        setError(result.error || t('popup.session.saveFail'));
       }
     } catch (err) {
       console.error('[SessionTab] Failed to save session:', err);
-      setError('保存失败');
+      setError(t('popup.session.saveFail'));
     } finally {
       setSaving(false);
     }
@@ -74,11 +78,11 @@ function SessionTab() {
     try {
       const result = await sendMessage('tab-sessions/restore', sessionId);
       if (!result.success) {
-        setError(result.error || '恢复失败');
+        setError(result.error || t('popup.session.restoreFail'));
       }
     } catch (err) {
       console.error('[SessionTab] Failed to restore session:', err);
-      setError('恢复失败');
+      setError(t('popup.session.restoreFail'));
     } finally {
       setRestoringId(null);
     }
@@ -92,11 +96,11 @@ function SessionTab() {
       if (result.success) {
         setSessions(prev => prev.filter(s => s.id !== sessionId));
       } else {
-        setError(result.error || '删除失败');
+        setError(result.error || t('popup.session.deleteFail'));
       }
     } catch (err) {
       console.error('[SessionTab] Failed to delete session:', err);
-      setError('删除失败');
+      setError(t('popup.session.deleteFail'));
     }
   };
 
@@ -109,11 +113,11 @@ function SessionTab() {
       if (result.success && result.user) {
         setCurrentUser(result.user);
       } else {
-        setLoginError(result.error || '登录失败');
+        setLoginError(result.error || t('popup.session.loginFail'));
       }
     } catch (err) {
       console.error('[SessionTab] Login error:', err);
-      setLoginError(err instanceof Error ? err.message : '登录失败');
+      setLoginError(err instanceof Error ? err.message : t('popup.session.loginFail'));
     } finally {
       setLoginLoading(false);
     }
@@ -121,7 +125,7 @@ function SessionTab() {
 
   // 登出
   const handleLogout = async () => {
-    if (!window.confirm('确定要退出登录吗?登出后云同步将不可用。')) return;
+    if (!window.confirm(t('popup.session.logoutConfirm'))) return;
     setLoginLoading(true);
     setLoginError(null);
     try {
@@ -129,11 +133,11 @@ function SessionTab() {
       if (result.success) {
         setCurrentUser(null);
       } else {
-        setLoginError(result.error || '登出失败');
+        setLoginError(result.error || t('popup.session.logoutFail'));
       }
     } catch (err) {
       console.error('[SessionTab] Logout error:', err);
-      setLoginError(err instanceof Error ? err.message : '登出失败');
+      setLoginError(err instanceof Error ? err.message : t('popup.session.logoutFail'));
     } finally {
       setLoginLoading(false);
     }
@@ -146,30 +150,30 @@ function SessionTab() {
     setSyncErr(null);
     try {
       const res = await sendMessage('sync/upload', 'sessions');
-      if (res.success) setSyncMsg('已上传到云端');
-      else setSyncErr(res.error || '上传失败');
+      if (res.success) setSyncMsg(t('popup.session.uploaded'));
+      else setSyncErr(res.error || t('popup.session.uploadFail'));
     } catch (err) {
-      setSyncErr(err instanceof Error ? err.message : '上传失败');
+      setSyncErr(err instanceof Error ? err.message : t('popup.session.uploadFail'));
     } finally {
       setSyncBusy(null);
     }
   };
 
   const handleSyncDownload = async () => {
-    if (!window.confirm('从云端下载将用云端会话覆盖本地,确定?')) return;
+    if (!window.confirm(t('popup.session.downloadConfirm'))) return;
     setSyncBusy('download');
     setSyncMsg(null);
     setSyncErr(null);
     try {
       const res = await sendMessage('sync/download', 'sessions');
       if (res.success) {
-        setSyncMsg('已从云端下载');
+        setSyncMsg(t('popup.session.downloaded'));
         await loadSessions(); // 本地会话已被覆盖,刷新列表
       } else {
-        setSyncErr(res.error || '下载失败');
+        setSyncErr(res.error || t('popup.session.downloadFail'));
       }
     } catch (err) {
-      setSyncErr(err instanceof Error ? err.message : '下载失败');
+      setSyncErr(err instanceof Error ? err.message : t('popup.session.downloadFail'));
     } finally {
       setSyncBusy(null);
     }
@@ -180,10 +184,10 @@ function SessionTab() {
     const now = Date.now();
     const diff = now - timestamp;
 
-    if (diff < 60000) return '刚刚';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
-    return `${Math.floor(diff / 86400000)} 天前`;
+    if (diff < 60000) return t('popup.session.justNow');
+    if (diff < 3600000) return t('popup.session.minutesAgo', { n: Math.floor(diff / 60000) });
+    if (diff < 86400000) return t('popup.session.hoursAgo', { n: Math.floor(diff / 3600000) });
+    return t('popup.session.daysAgo', { n: Math.floor(diff / 86400000) });
   };
 
   return (
@@ -197,17 +201,15 @@ function SessionTab() {
         {saving ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            保存中...
+            {t('popup.session.saving')}
           </>
         ) : (
           <>
             <Save className="w-4 h-4" />
-            保存当前标签页
+            {t('popup.session.saveCurrent')}
           </>
         )}
       </Button>
-
-      {/* 会话云同步区块(仅登录后显示)见登录态下方 */}
 
       {/* 登录态 */}
       <div className="border border-white/20 dark:border-black/10 rounded-lg p-3 bg-muted/30">
@@ -243,14 +245,14 @@ function SessionTab() {
               className="gap-1 h-7 text-xs"
             >
               <LogOut className="w-3 h-3" />
-              退出
+              {t('popup.session.logout')}
             </Button>
           </div>
         ) : (
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Mail className="w-3.5 h-3.5" />
-              未登录,云同步不可用
+              {t('popup.session.loggedOutHint')}
             </div>
             <Button
               variant="default"
@@ -262,12 +264,12 @@ function SessionTab() {
               {loginLoading ? (
                 <>
                   <Loader2 className="w-3 h-3 animate-spin" />
-                  登录中…
+                  {t('popup.session.loginLoading')}
                 </>
               ) : (
                 <>
                   <LogIn className="w-3 h-3" />
-                  Google 登录
+                  {t('popup.session.loginButton')}
                 </>
               )}
             </Button>
@@ -286,11 +288,11 @@ function SessionTab() {
         <div className="border border-white/20 dark:border-black/10 rounded-lg p-3 bg-muted/30 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium flex items-center gap-1.5">
-              会话云同步
+              {t('popup.session.cloudSyncTitle')}
               {sessionsDirty && (
                 <span
                   className="w-2 h-2 rounded-full bg-red-500"
-                  title="有未同步到云端的本地会话"
+                  title={t('popup.session.cloudSyncDirty')}
                 />
               )}
             </span>
@@ -308,7 +310,7 @@ function SessionTab() {
               ) : (
                 <Upload className="w-3 h-3" />
               )}
-              上传到云
+              {t('popup.session.uploadToCloud')}
             </Button>
             <Button
               variant="outline"
@@ -322,7 +324,7 @@ function SessionTab() {
               ) : (
                 <Download className="w-3 h-3" />
               )}
-              从云下载
+              {t('popup.session.downloadFromCloud')}
             </Button>
           </div>
           {syncMsg && (
@@ -351,13 +353,13 @@ function SessionTab() {
       {/* 会话列表 */}
       {loading ? (
         <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
-          加载中...
+          {t('popup.search.loading')}
         </div>
       ) : sessions.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
           <History className="w-8 h-8 mb-2 opacity-50" />
-          <p className="text-sm">暂无保存的会话</p>
-          <p className="text-xs mt-1 opacity-60">点击上方按钮保存当前标签页</p>
+          <p className="text-sm">{t('popup.session.noSessions')}</p>
+          <p className="text-xs mt-1 opacity-60">{t('popup.session.noSessionsHint')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -375,11 +377,11 @@ function SessionTab() {
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                     <span>{getRelativeTime(session.createdAt)}</span>
                     <span>·</span>
-                    <span>{session.tabCount} 个标签页</span>
+                    <span>{t('popup.session.tabs', { n: session.tabCount })}</span>
                     {session.tabCount >= 30 && (
                       <>
                         <span>·</span>
-                        <span className="text-amber-500" title="已达到 30 个标签页上限">上限</span>
+                        <span className="text-amber-500" title={t('popup.session.tabsLimitTitle')}>{t('popup.session.tabsLimit')}</span>
                       </>
                     )}
                   </div>
@@ -397,7 +399,7 @@ function SessionTab() {
                   ))}
                   {session.tabs.length > 3 && (
                     <div className="text-[10px] opacity-60">
-                      还有 {session.tabs.length - 3} 个标签页...
+                      {t('popup.session.moreTabs', { n: session.tabs.length - 3 })}
                     </div>
                   )}
                 </div>
@@ -415,12 +417,12 @@ function SessionTab() {
                   {restoringId === session.id ? (
                     <>
                       <Loader2 className="w-3 h-3 animate-spin" />
-                      恢复中...
+                      {t('popup.session.restoring')}
                     </>
                   ) : (
                     <>
                       <RotateCcw className="w-3 h-3" />
-                      恢复
+                      {t('popup.session.restore')}
                     </>
                   )}
                 </Button>
@@ -431,7 +433,7 @@ function SessionTab() {
                   className="gap-1.5 h-8 text-xs text-red-500 hover:text-red-600 border-red-500/30 hover:border-red-500/50"
                 >
                   <Trash2 className="w-3 h-3" />
-                  删除
+                  {t('popup.session.delete')}
                 </Button>
               </div>
             </div>

@@ -12,6 +12,7 @@ import { Input } from '@/src/components/ui/input';
 import { Label } from '@/src/components/ui/label';
 import type { Shortcut } from '@/src/utils/types';
 import { getGoogleFaviconUrl, extractDomain } from '@/src/utils/faviconCache';
+import { useI18n } from '@/src/i18n';
 
 interface ShortcutDialogProps {
   open: boolean;
@@ -51,6 +52,7 @@ function extractNameFromUrl(url: string): string {
 }
 
 export function ShortcutDialog({ open, onOpenChange, shortcut, onSave, quickMode = false }: ShortcutDialogProps) {
+  const { t } = useI18n();
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [icon, setIcon] = useState('');
@@ -132,14 +134,14 @@ export function ShortcutDialog({ open, onOpenChange, shortcut, onSave, quickMode
               <Input
                 key={`quick-url-${urlInputKey}`}
                 id="quick-url-input"
-                placeholder="粘贴网址..."
+                placeholder={t('shortcuts.quickPlaceholder')}
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 onKeyDown={handleKeyDown}
                 className="flex-1 h-10"
               />
               <Input
-                placeholder="名称"
+                placeholder={t('shortcuts.quickNamePlaceholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={handleKeyDown}
@@ -152,7 +154,7 @@ export function ShortcutDialog({ open, onOpenChange, shortcut, onSave, quickMode
                 disabled={!url.trim()}
                 className="h-10 px-4"
               >
-                添加
+                {t('shortcuts.quickAdd')}
               </Button>
             </div>
           </div>
@@ -160,27 +162,27 @@ export function ShortcutDialog({ open, onOpenChange, shortcut, onSave, quickMode
           // 普通模式：完整表单
           <>
             <DialogHeader>
-              <DialogTitle>{isEditing ? '编辑快捷方式' : '添加快捷方式'}</DialogTitle>
+              <DialogTitle>{isEditing ? t('shortcuts.editTitle') : t('shortcuts.addTitle')}</DialogTitle>
               <DialogDescription>
-                {isEditing ? '修改快捷方式的名称和网址' : '添加一个新的网站快捷方式'}
+                {isEditing ? t('shortcuts.editDescription') : t('shortcuts.addDescription')}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit}>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="name">名称</Label>
+                  <Label htmlFor="name">{t('shortcuts.name')}</Label>
                   <Input
                     id="name"
-                    placeholder="例如：Google"
+                    placeholder={t('shortcuts.namePlaceholder')}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="url">网址</Label>
+                  <Label htmlFor="url">{t('shortcuts.url')}</Label>
                   <Input
                     id="url"
-                    placeholder="例如：google.com"
+                    placeholder={t('shortcuts.urlPlaceholder')}
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                   />
@@ -188,7 +190,7 @@ export function ShortcutDialog({ open, onOpenChange, shortcut, onSave, quickMode
                 {/* 图标预览 */}
                 {previewIcon && (
                   <div className="flex items-center gap-3">
-                    <span className="text-sm text-muted-foreground">图标预览：</span>
+                    <span className="text-sm text-muted-foreground">{t('shortcuts.iconPreview')}</span>
                     <img
                       src={previewIcon}
                       alt="Favicon"
@@ -202,10 +204,10 @@ export function ShortcutDialog({ open, onOpenChange, shortcut, onSave, quickMode
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                  取消
+                  {t('common.cancel')}
                 </Button>
                 <Button type="submit" disabled={!name.trim() || !url.trim()}>
-                  {isEditing ? '保存' : '添加'}
+                  {isEditing ? t('common.save') : t('common.add')}
                 </Button>
               </DialogFooter>
             </form>

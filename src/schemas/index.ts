@@ -9,6 +9,7 @@
 
 import { v } from './validator';
 import type { Shortcut, ShortcutGroup, TabSession, TabInfo, Settings, BackgroundSetting } from '@/src/utils/types';
+import { SUPPORTED_LOCALES } from '@/src/i18n';
 
 const STORAGE_KEYS = ['google', 'bing', 'baidu'] as const;
 const LAYOUTS = ['grid', 'group'] as const;
@@ -62,6 +63,7 @@ export const settingsSchema = v.object({
   iconsPerRow: v.number(),
   layout: v.oneOf(LAYOUTS),
   background: v.optional(backgroundSchema),
+  language: v.optional(v.oneOf(SUPPORTED_LOCALES)),
 });
 
 export { v, safeRead } from './validator';

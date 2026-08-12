@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { ArrowRight, Clock, Globe, Loader2, TrendingUp, X } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import type { SuggestionGroup, SuggestionItem } from '@/src/hooks/useSearchSuggestions';
+import { useI18n } from '@/src/i18n';
 
 interface SuggestionDropdownProps {
   /** 锚点元素（输入框容器），用于计算下拉位置 */
@@ -45,8 +46,16 @@ export function SuggestionDropdown({
   hasHistory,
   scrollToSelectedItem,
 }: SuggestionDropdownProps) {
+  const { t } = useI18n();
   const [position, setPosition] = useState<DropdownPosition>({ top: 0, left: 0, width: 0 });
   const listRef = useRef<HTMLDivElement>(null);
+
+  // 把 group.type 映射到 i18n key
+  const TYPE_KEY: Record<SuggestionItem['type'], string> = {
+    history: 'search.groups.history',
+    shortcut: 'search.groups.shortcuts',
+    suggestion: 'search.groups.suggestions',
+  };
 
   // 根据 anchorRef 实时计算下拉位置
   useEffect(() => {
@@ -98,11 +107,15 @@ export function SuggestionDropdown({
         data-suggestion-list
         className="overflow-y-auto max-h-[360px]"
       >
-        {groups.map((group, groupIndex) => (
-          <div key={group.title}>
-            <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/30">
-              {group.title}
-            </div>
+        {groups.map((group, groupIndex) => {
+          // group.title 可能是 '历史记录'/'快捷方式'/'搜索建议'(默认 zh_CN);
+          // 兜底:若 group.title 不在 TYPE_KEY 映射里(可能是自定义),保留原值
+          const titleKey = TYPE_KEY[group.items[0]?.type ?? 'history'];
+          return (
+            <div key={group.title}>
+              <div className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider bg-muted/30">
+                {t(titleKey)}
+              </div>
 
             {group.items.map((item, itemIndex) => {
               const globalIndex = globalIndexOf(groupIndex, itemIndex);
@@ -151,7 +164,7 @@ export function SuggestionDropdown({
                           'p-1.5 rounded-md transition-colors',
                           isSelected ? 'hover:bg-primary/20' : 'hover:bg-muted'
                         )}
-                        title="删除"
+                        title={t('search.remove')}
                       >
                         <X className="w-3.5 h-3.5 text-muted-foreground" />
                       </button>
@@ -176,27 +189,28 @@ export function SuggestionDropdown({
               );
             })}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="flex items-center justify-between px-3 py-2 border-t border-white/20 dark:border-black/10 bg-white/10 dark:bg-black/10 text-xs text-muted-foreground">
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">↑↓</kbd>
-            导航
+            {t('search.nav')}
           </span>
           <span className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">Enter</kbd>
-            确认
+            {t('search.enter')}
           </span>
           <span className="flex items-center gap-1">
             <kbd className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">Esc</kbd>
-            关闭
+            {t('search.esc')}
           </span>
         </div>
         {hasHistory && (
           <button onClick={onClearHistory} className="hover:text-destructive transition-colors">
-            清空历史
+            {t('search.clearHistory')}
           </button>
         )}
       </div>

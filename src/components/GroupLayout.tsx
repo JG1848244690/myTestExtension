@@ -29,6 +29,7 @@ import { ImportExportDialog } from './ImportExportDialog';
 import { useDebounce } from '@/src/hooks/useDebounce';
 import { UI_CONFIG } from '@/src/utils/constants';
 import type { Shortcut, ShortcutGroup } from '@/src/utils/types';
+import { useI18n } from '@/src/i18n';
 
 interface GroupLayoutProps {
   groups: ShortcutGroup[];
@@ -137,6 +138,7 @@ export function GroupLayout({
   onReorderShortcutsInGroup,
   getUngroupedShortcutIds,
 }: GroupLayoutProps) {
+  const { t } = useI18n();
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [shortcutDialogOpen, setShortcutDialogOpen] = useState(false);
   const [importExportDialogOpen, setImportExportDialogOpen] = useState(false);
@@ -329,7 +331,7 @@ export function GroupLayout({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="搜索快捷方式..."
+              placeholder={t('shortcuts.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 pr-8 h-9 bg-white/10 dark:bg-black/10 backdrop-blur-xl border border-white/20 dark:border-black/10"
@@ -350,20 +352,20 @@ export function GroupLayout({
               variant="ghost"
               size="sm"
               onClick={() => setImportExportDialogOpen(true)}
-              title="导入导出"
+              title={t('layout.importExport')}
             >
               <Download className="w-4 h-4" />
             </Button>
             {bookmarksDirty && (
               <span
-                title="有未同步到云端的本地书签,点开上传"
+                title={t('layout.dirtyHint')}
                 className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background"
               />
             )}
           </div>
           <Button variant="outline" size="sm" onClick={handleAddGroup}>
             <Plus className="w-4 h-4 mr-1" />
-            新建分组
+            {t('groups.newGroup')}
           </Button>
         </div>
       </div>
@@ -372,8 +374,8 @@ export function GroupLayout({
       {debouncedQuery.trim() && (
         <div className="text-sm text-muted-foreground">
           {filteredData.totalResults > 0
-            ? `找到 ${filteredData.totalResults} 个结果`
-            : '无匹配结果'}
+            ? t('common.foundResults', { n: filteredData.totalResults })
+            : t('common.noResults')}
         </div>
       )}
 
@@ -430,16 +432,16 @@ export function GroupLayout({
                         onCheckedChange={handleUngroupedSelectAll}
                         className="mr-1 h-3 w-3"
                       />
-                      {ungroupedSelectedIds.size === ungroupedShortcuts.length ? '取消' : '全选'}
+                      {ungroupedSelectedIds.size === ungroupedShortcuts.length ? t('common.deselectAll') : t('common.selectAll')}
                     </Button>
                     <span className="text-xs text-muted-foreground">
-                      已选择 {ungroupedSelectedIds.size} 项
+                      {t('common.selectedCount', { n: ungroupedSelectedIds.size })}
                     </span>
                   </>
                 ) : (
                   <>
                     <span className="font-medium text-sm text-muted-foreground">
-                      未分组
+                      {t('groups.ungrouped')}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       ({ungroupedShortcuts.length})
@@ -458,7 +460,7 @@ export function GroupLayout({
                       disabled={ungroupedSelectedIds.size === 0}
                     >
                       <Move className="w-3 h-3 mr-1" />
-                      迁移
+                      {t('common.migrate')}
                     </Button>
                     <Button
                       variant="destructive"
@@ -468,7 +470,7 @@ export function GroupLayout({
                       disabled={ungroupedSelectedIds.size === 0}
                     >
                       <Trash2 className="w-3 h-3 mr-1" />
-                      删除
+                      {t('common.delete')}
                     </Button>
                     <Button
                       variant="ghost"
@@ -487,7 +489,7 @@ export function GroupLayout({
                       className="h-7 px-2 text-xs"
                       onClick={toggleUngroupedSelectMode}
                     >
-                      批量管理
+                      {t('common.batchManage')}
                     </Button>
                     <Button
                       variant="ghost"
@@ -537,14 +539,14 @@ export function GroupLayout({
         {filteredData.groups.length === 0 && filteredData.ungroupedShortcuts.length === 0 && (
           debouncedQuery.trim() ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <p className="text-sm">无匹配结果</p>
+              <p className="text-sm">{t('common.noResults')}</p>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <p className="text-sm mb-4">暂无快捷方式</p>
+              <p className="text-sm mb-4">{t('shortcuts.noShortcuts')}</p>
               <Button variant="outline" onClick={handleAddUngroupedShortcut}>
                 <Plus className="w-4 h-4 mr-1" />
-                添加快捷方式
+                {t('common.add')}
               </Button>
             </div>
           )

@@ -1,6 +1,7 @@
 import { Layers } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import type { LayoutType } from '@/src/utils/types';
+import { useI18n } from '@/src/i18n';
 
 interface LayoutTabsProps {
   layout: LayoutType;
@@ -8,6 +9,7 @@ interface LayoutTabsProps {
 }
 
 export function LayoutTabs({ layout, onLayoutChange }: LayoutTabsProps) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-xl">
       <button
@@ -20,7 +22,7 @@ export function LayoutTabs({ layout, onLayoutChange }: LayoutTabsProps) {
         )}
       >
         <Layers className="w-4 h-4" />
-        <span className="hidden sm:inline">分组</span>
+        <span className="hidden sm:inline">{t('layout.group')}</span>
       </button>
     </div>
   );

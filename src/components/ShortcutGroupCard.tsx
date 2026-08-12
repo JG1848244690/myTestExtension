@@ -28,6 +28,7 @@ import { MigrateDialog } from './MigrateDialog';
 import { ShortcutCard } from './ShortcutCard';
 import type { Shortcut, ShortcutGroup } from '@/src/utils/types';
 import { cn } from '@/src/lib/utils';
+import { useI18n } from '@/src/i18n';
 
 // 可排序的快捷方式卡片包装器
 interface SortableShortcutCardProps {
@@ -49,6 +50,7 @@ function SortableShortcutCard({
   isSelected,
   onSelect,
 }: SortableShortcutCardProps) {
+  const { t } = useI18n();
   const {
     attributes,
     listeners,
@@ -71,7 +73,7 @@ function SortableShortcutCard({
           {...attributes}
           {...listeners}
           className="absolute top-1 right-1 z-20 p-1 rounded bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing hover:bg-muted"
-          aria-label="拖拽排序"
+          aria-label={t('common.dragToReorder')}
         >
           <GripVertical className="w-3 h-3 text-muted-foreground" />
         </button>
@@ -133,6 +135,7 @@ export function ShortcutGroupCard({
   dragHandleProps,
   isDragging,
 }: ShortcutGroupCardProps) {
+  const { t } = useI18n();
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [migrateDialogOpen, setMigrateDialogOpen] = useState(false);
@@ -256,7 +259,7 @@ export function ShortcutGroupCard({
             <button
               {...dragHandleProps}
               className="flex items-center justify-center p-1 hover:bg-muted/50 rounded cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="拖拽排序"
+              aria-label={t('common.dragToReorder')}
             >
               <GripVertical className="w-4 h-4" />
             </button>
@@ -292,7 +295,7 @@ export function ShortcutGroupCard({
                   onCheckedChange={handleSelectAll}
                   className="mr-1 h-3 w-3"
                 />
-                {selectedIds.size === shortcuts.length ? '取消' : '全选'}
+                {selectedIds.size === shortcuts.length ? t('common.deselectAll') : t('common.selectAll')}
               </Button>
               <Button
                 variant="outline"
@@ -302,7 +305,7 @@ export function ShortcutGroupCard({
                 disabled={selectedIds.size === 0}
               >
                 <Move className="w-3 h-3 mr-1" />
-                迁移
+                {t('common.migrate')}
               </Button>
               <Button
                 variant="destructive"
@@ -312,7 +315,7 @@ export function ShortcutGroupCard({
                 disabled={selectedIds.size === 0}
               >
                 <Trash2 className="w-3 h-3 mr-1" />
-                删除
+                {t('common.delete')}
               </Button>
               <Button
                 variant="ghost"
@@ -337,7 +340,7 @@ export function ShortcutGroupCard({
                 }}
                 disabled={shortcuts.length === 0}
               >
-                批量管理
+                {t('common.batchManage')}
               </Button>
               {group.isExpanded && (
                 <Button
@@ -358,11 +361,11 @@ export function ShortcutGroupCard({
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={onEdit}>
                     <Pencil className="mr-2 h-4 w-4" />
-                    编辑分组
+                    {t('groups.editGroup')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={onRemove} className="text-destructive focus:text-destructive">
                     <Trash2 className="mr-2 h-4 w-4" />
-                    删除分组
+                    {t('common.delete')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -374,7 +377,7 @@ export function ShortcutGroupCard({
       {/* 选择模式提示 */}
       {isSelectMode && selectedIds.size > 0 && (
         <div className="px-3 py-1 bg-primary/10 text-xs text-primary border-b border-white/20 dark:border-black/10">
-          已选择 {selectedIds.size} 项
+          {t('common.selectedCount', { n: selectedIds.size })}
         </div>
       )}
 
@@ -410,7 +413,7 @@ export function ShortcutGroupCard({
           ) : (
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
               <FolderOpen className="w-8 h-8 mb-2 opacity-50" />
-              <p className="text-sm">分组为空</p>
+              <p className="text-sm">{t('groups.empty')}</p>
               <Button
                 variant="outline"
                 size="sm"
@@ -418,7 +421,7 @@ export function ShortcutGroupCard({
                 onClick={onAddShortcut}
               >
                 <Plus className="w-3 h-3 mr-1" />
-                添加快捷方式
+                {t('groups.addShortcut')}
               </Button>
             </div>
           )}

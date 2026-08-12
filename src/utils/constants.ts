@@ -56,11 +56,11 @@ export const GROUP_COLORS = [
   { name: '青色', value: 'cyan' },
 ] as const;
 
-// 搜索引擎选项
+// 搜索引擎选项(name 走 i18n,组件内通过 t('searchEngine.baidu') 等渲染)
 export const SEARCH_ENGINES: SearchEngineOption[] = [
   { id: 'google', name: 'Google', url: 'https://www.google.com/search?q=', icon: '🔍' },
   { id: 'bing', name: 'Bing', url: 'https://www.bing.com/search?q=', icon: '🔎' },
-  { id: 'baidu', name: '百度', url: 'https://www.baidu.com/s?wd=', icon: '🌐' },
+  { id: 'baidu', name: 'baidu', url: 'https://www.baidu.com/s?wd=', icon: '🌐' },
 ];
 
 // 默认设置

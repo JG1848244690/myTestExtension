@@ -11,6 +11,7 @@ import type { Shortcut } from '@/src/utils/types';
 import { getFaviconWithFallback, generateInitialFallback } from '@/src/utils/faviconCache';
 import { cn } from '@/src/lib/utils';
 import { notifyNewtabNavigated } from '@/src/utils/navigationReset';
+import { useI18n } from '@/src/i18n';
 
 interface ShortcutCardProps {
   shortcut: Shortcut;
@@ -29,6 +30,7 @@ export function ShortcutCard({
   isSelected = false,
   onSelect
 }: ShortcutCardProps) {
+  const { t } = useI18n();
   const [faviconSrc, setFaviconSrc] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -105,7 +107,7 @@ export function ShortcutCard({
               onEdit(shortcut);
             }}>
               <Pencil className="mr-2 h-4 w-4" />
-              编辑
+              {t('common.edit')}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={(e) => {
@@ -115,7 +117,7 @@ export function ShortcutCard({
               className="text-destructive focus:text-destructive"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              删除
+              {t('common.delete')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

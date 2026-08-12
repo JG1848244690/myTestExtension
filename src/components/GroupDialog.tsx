@@ -13,6 +13,7 @@ import { Label } from '@/src/components/ui/label';
 import type { ShortcutGroup } from '@/src/utils/types';
 import { GROUP_COLORS } from '@/src/utils/constants';
 import { cn } from '@/src/lib/utils';
+import { useI18n } from '@/src/i18n';
 
 interface GroupDialogProps {
   open: boolean;
@@ -22,6 +23,7 @@ interface GroupDialogProps {
 }
 
 export function GroupDialog({ open, onOpenChange, group, onSave }: GroupDialogProps) {
+  const { t } = useI18n();
   const [name, setName] = useState('');
   const [color, setColor] = useState<string>('');
   const isEditing = !!group;
@@ -54,24 +56,24 @@ export function GroupDialog({ open, onOpenChange, group, onSave }: GroupDialogPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
-          <DialogTitle>{isEditing ? '编辑分组' : '新建分组'}</DialogTitle>
+          <DialogTitle>{isEditing ? t('groups.editGroup') : t('groups.newGroup')}</DialogTitle>
           <DialogDescription>
-            {isEditing ? '修改分组名称和颜色' : '创建一个新的快捷方式分组'}
+            {isEditing ? t('groups.editGroupDesc') : t('groups.newGroupDesc')}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">分组名称</Label>
+              <Label htmlFor="name">{t('groups.groupName')}</Label>
               <Input
                 id="name"
-                placeholder="例如：工作、学习、娱乐"
+                placeholder={t('groups.groupNamePlaceholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
-              <Label>分组颜色</Label>
+              <Label>{t('groups.groupColor')}</Label>
               <div className="flex flex-wrap gap-2">
                 {GROUP_COLORS.map((c) => (
                   <button
@@ -85,7 +87,7 @@ export function GroupDialog({ open, onOpenChange, group, onSave }: GroupDialogPr
                         ? 'border-foreground scale-110'
                         : 'border-transparent hover:scale-105'
                     )}
-                    title={c.name}
+                    title={t(`groups.color.${c.value}`)}
                     style={{
                       backgroundColor: c.value === 'blue' ? '#3b82f6' :
                         c.value === 'green' ? '#22c55e' :
@@ -105,7 +107,7 @@ export function GroupDialog({ open, onOpenChange, group, onSave }: GroupDialogPr
                       ? 'border-foreground scale-110'
                       : 'border-transparent hover:scale-105'
                   )}
-                  title="默认"
+                  title={t('groups.default')}
                 >
                   <span className="text-xs text-muted-foreground">×</span>
                 </button>
@@ -114,10 +116,10 @@ export function GroupDialog({ open, onOpenChange, group, onSave }: GroupDialogPr
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              取消
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={!name.trim()}>
-              {isEditing ? '保存' : '创建'}
+              {isEditing ? t('common.save') : t('common.create')}
             </Button>
           </DialogFooter>
         </form>

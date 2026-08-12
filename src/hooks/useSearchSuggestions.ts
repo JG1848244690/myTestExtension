@@ -11,6 +11,7 @@ import type {
   Shortcut,
 } from '@/src/utils/types';
 import type { SearchHistoryItem } from '@/src/store/history';
+import { useI18n } from '@/src/i18n';
 
 export interface SuggestionItem {
   id: string;
@@ -64,6 +65,7 @@ export function useSearchSuggestions({
   shortcuts,
   debounceMs = 150,
 }: UseSearchSuggestionsParams): UseSearchSuggestionsReturn {
+  const { locale } = useI18n();
   const [query, setQuery] = useState('');
   const [groups, setGroups] = useState<SuggestionGroup[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -171,6 +173,8 @@ export function useSearchSuggestions({
 
     return result;
   }, [query, history, shortcuts]);
+  // 注:title 字段保留中文占位('历史记录'/'快捷方式'),实际渲染由 SuggestionDropdown
+  // 根据 item.type 调用 i18n.t() 重新本地化。locale 变化触发 effect 重生 groups 时一并刷新。
 
   // debounce 更新
   useEffect(() => {
@@ -212,7 +216,7 @@ export function useSearchSuggestions({
         clearTimeout(debounceRef.current);
       }
     };
-  }, [query, debounceMs, generateSuggestionGroups, fetchSearchSuggestions]);
+  }, [query, debounceMs, generateSuggestionGroups, fetchSearchSuggestions, locale]);
 
   // query 清空时也要清空 groups（避免脏数据）
   useEffect(() => {

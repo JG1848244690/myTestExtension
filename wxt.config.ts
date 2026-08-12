@@ -9,8 +9,11 @@ export default defineConfig({
   }),
 
   manifest: ({ browser }) => ({
-    name: '序言',
-    description: '简洁高效的新标签页',
+    // Web Store 多语言展示:default_locale 决定 fallback,其它语种用 _locales/<lang>/messages.json
+    // 仅 manifest 层 i18n,扩展内 UI 文案暂未接入 i18n(后续按需迭代)。
+    name: '__MSG_extName__',
+    description: '__MSG_extDescription__',
+    default_locale: 'en',
     // ===== 固定 Chrome 扩展 ID =====
     // 填的是公钥(SPKI DER base64)。Chrome 算 ID 用 SHA256(public_key_der),
     // 填公钥跟填私钥算出的 ID 一致。配套商店 ID: lanccjojcmdklbhnbmbfemiabnpbgoga

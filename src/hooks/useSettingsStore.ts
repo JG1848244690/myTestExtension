@@ -6,6 +6,7 @@ import { useStoreState } from '@/src/lib/store';
 import { settingsStore, settingsActions } from '@/src/store/settings';
 import { SEARCH_ENGINES } from '@/src/utils/constants';
 import type { SearchEngineType, SearchEngineOption, BackgroundSetting } from '@/src/utils/types';
+import type { Locale } from '@/src/i18n';
 
 export function useSettingsStore() {
   const settings = useStoreState(settingsStore, (s) => s);
@@ -19,6 +20,7 @@ export function useSettingsStore() {
     engineOptions: SEARCH_ENGINES,
     setEngine: (engine: SearchEngineType) => settingsActions.patch({ searchEngine: engine }),
     setBackground: (background: BackgroundSetting) => settingsActions.patch({ background }),
+    setLanguage: (language: Locale) => settingsActions.patch({ language }),
     patchSettings: settingsActions.patch,
     importSettings: settingsActions.replace,
   };

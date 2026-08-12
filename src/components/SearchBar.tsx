@@ -26,6 +26,7 @@ import { SuggestionDropdown } from '@/src/components/SuggestionDropdown';
 import type { SearchEngineType, SearchEngineOption, Shortcut } from '@/src/utils/types';
 import { cn } from '@/src/lib/utils';
 import { notifyNewtabNavigated } from '@/src/utils/navigationReset';
+import { useI18n } from '@/src/i18n';
 
 interface SearchBarProps {
   engine: SearchEngineType;
@@ -44,7 +45,12 @@ export function SearchBar({
   onSearch,
   shortcuts = [],
 }: SearchBarProps) {
+  const { t } = useI18n();
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // 引擎名走 i18n(baidu 在字典里有专门 key;google/bing 直接用 SearchEngineOption.name)
+  const getEngineName = (opt: SearchEngineOption) =>
+    opt.id === 'baidu' ? t('searchEngine.baidu') : opt.name;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -152,13 +158,13 @@ export function SearchBar({
         >
           <SelectTrigger className="w-[100px] border-0 bg-transparent focus:ring-0 shrink-0 hover:bg-accent/50 rounded-xl transition-colors">
             <SelectValue>
-              <span className="text-sm truncate">{engineOption.name}</span>
+              <span className="text-sm truncate">{getEngineName(engineOption)}</span>
             </SelectValue>
           </SelectTrigger>
           <SelectContent className="z-[10000]">
             {engineOptions.map((option) => (
               <SelectItem key={option.id} value={option.id}>
-                {option.icon} {option.name}
+                {option.icon} {getEngineName(option)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -170,7 +176,7 @@ export function SearchBar({
           <Input
             ref={inputRef}
             type="text"
-            placeholder="搜索或直接访问网址..."
+            placeholder={t('search.placeholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setShowSuggestions(true)}
@@ -198,7 +204,7 @@ export function SearchBar({
           )}
         >
           <Search className="w-4 h-4 mr-2" />
-          搜索
+          {t('search.search')}
         </Button>
       </div>
 
