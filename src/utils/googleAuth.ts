@@ -1,24 +1,28 @@
-﻿/**
- * Google 登录工具(授权码模式)
+/**
+ * Google 登录工具(launchWebAuthFlow 隐式流 + 后端不验签模式)
  *
  * 流程:
- *   1. chrome.identity.launchWebAuthFlow 弹出 Google 授权页
- *      - response_type=code
- *      - 用户同意后 Google 回调 https://<EXT_ID>.chromiumapp.org/?code=xxx
- *   2. 插件解析 code,POST { code, redirectUri } 给后端 /sync/auth/google
- *   3. 后端用 code + client_id + client_secret 调 Google /token 换 access_token
- *   4. 后端用 access_token 调 Google /userinfo 拿用户信息
- *   5. 后端 upsert users 表,颁发 sessionToken,返回 { sessionToken, user }
+ *   1. chrome.identity.launchWebAuthFlow 弹 Google 账号选择器
+ *      - response_type=id_token (隐式流)
+ *      - 用户同意后 Google 回调 https://<EXT_ID>.chromiumapp.org/#id_token=...
+ *   2. 扩展从回调 URL 的 fragment 解析出 id_token
+ *   3. 扩展 base64 解码 JWT payload 拿 email / name / picture
+ *   4. 扩展 POST {email, name, picture} 给后端 /sync/auth/google
+ *   5. 后端**完全不验证** id_token 签名、不调 Google API,只用 email
+ *      派生 userId,upsert users,发 sessionToken
  *   6. 插件缓存 sessionToken + user 到 local storage
  *
+ * ⚠️ 安全警告:后端不验签,任何能 POST 到 /sync/auth/google 的人
+ * 加上 email 就能拿到对应用户的 sessionToken。仅适合个人/小范围。
+ *
  * 后续每次调用 sync 接口都带 Authorization: Bearer <sessionToken>
- *   (后端会用 sessionToken 查 user_sessions 表确认身份)
  */
 
+// 流程与 tiktok-analytics 的 googleLoginDirect.ts 一致(client_id 复用主站那个)。
 import {
   GOOGLE_CLIENT_ID,
-  GOOGLE_OAUTH_SCOPES,
   GOOGLE_OAUTH_URL,
+  GOOGLE_OAUTH_SCOPES,
   SYNC_API_BASE_URL,
   SYNC_API,
   SYNC_LOCAL_KEYS,
@@ -35,12 +39,21 @@ export interface SyncUser {
   email: string;
   name?: string;
   picture?: string;
-  googleSub: string;   // Google 稳定用户 id
+  googleSub: string;   // 简化模式下后端用 email 占位
 }
 
 export interface GoogleLoginResult {
   sessionToken: string;
   user: SyncUser;
+}
+
+/** id_token payload(只看用得到的几个字段) */
+interface IdTokenPayload {
+  sub: string;
+  email: string;
+  email_verified?: boolean;
+  name?: string;
+  picture?: string;
 }
 
 // ============================================================
@@ -54,53 +67,65 @@ const userCell = createStorageCell<SyncUser>(SYNC_LOCAL_KEYS.USER);
 // Helpers
 // ============================================================
 
-/** 拿到当前扩展 id(动态、重新加载后会变) */
+/** 拿到当前扩展 id(动态、重新加载后会变 — 除非 manifest 加了 `key:` 字段) */
 function getExtensionId(): string {
   return browser.runtime.id;
 }
 
-/** 构造 redirect_uri,OAuth 必须严格匹配 */
+/** launchWebAuthFlow 要求的 redirect_uri,严格匹配 Google Console 配置 */
 function getRedirectUri(): string {
   return `https://${getExtensionId()}.chromiumapp.org/`;
 }
 
-/** 构造 OAuth 授权 URL — 授权码模式 */
-function buildAuthUrl(): string {
+/** 构造 OAuth 授权 URL — 隐式流(id_token 直接在 fragment 里) */
+function buildAuthUrl(nonce: string): string {
   const url = new URL(GOOGLE_OAUTH_URL);
   url.searchParams.set('client_id', GOOGLE_CLIENT_ID);
-  url.searchParams.set('response_type', 'code');           // ← 授权码模式
+  url.searchParams.set('response_type', 'id_token');
   url.searchParams.set('scope', GOOGLE_OAUTH_SCOPES);
   url.searchParams.set('redirect_uri', getRedirectUri());
-  url.searchParams.set('access_type', 'offline');           // ← 让 Google 返回 refresh_token
-  url.searchParams.set('include_granted_scopes', 'true');
-  url.searchParams.set('prompt', 'consent');                // ← 每次都让用户确认(refresh_token 必要)
+  url.searchParams.set('nonce', nonce);
+  url.searchParams.set('prompt', 'select_account');
   return url.toString();
 }
 
 /**
- * 从 launchWebAuthFlow 返回的 URL 里抽 code
- *
- * 成功: https://<EXT_ID>.chromiumapp.org/?code=4/0AVMBsJ...&scope=...
- * 失败: https://<EXT_ID>.chromiumapp.org/?error=access_denied&...
+ * 从 launchWebAuthFlow 返回的 URL fragment 解析 id_token
+ * 成功: https://<EXT_ID>.chromiumapp.org/#id_token=xxx&...
+ * 失败: https://<EXT_ID>.chromiumapp.org/#error=access_denied&...
  */
-function parseCode(responseUrl: string): string {
-  let query: string;
+function parseIdToken(responseUrl: string): string {
+  let fragment: string;
   try {
     const u = new URL(responseUrl);
-    query = u.search.startsWith('?') ? u.search.slice(1) : u.search;
+    fragment = u.hash.startsWith('#') ? u.hash.slice(1) : u.hash;
   } catch {
     throw new Error(`Invalid response URL: ${responseUrl}`);
   }
-  const params = new URLSearchParams(query);
+  const params = new URLSearchParams(fragment);
   const error = params.get('error');
   if (error) {
     throw new Error(`Google OAuth error: ${error} ${params.get('error_description') || ''}`);
   }
-  const code = params.get('code');
-  if (!code) {
-    throw new Error('No authorization code in OAuth response');
+  const idToken = params.get('id_token');
+  if (!idToken) {
+    throw new Error('No id_token in OAuth response fragment');
   }
-  return code;
+  return idToken;
+}
+
+/**
+ * 解码 JWT payload(中间段 base64)— 不验签,只看 claim
+ * 注意:Google 的 id_token payload 是 UTF-8 JSON,直接 atob 中文会乱码,
+ * 需要按 UTF-8 解码
+ */
+function decodeJwtPayload(jwt: string): IdTokenPayload {
+  const part = jwt.split('.')[1];
+  const binary = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
+  const utf8 = new TextDecoder('utf-8').decode(
+    Uint8Array.from(binary, (c) => c.charCodeAt(0)),
+  );
+  return JSON.parse(utf8);
 }
 
 // ============================================================
@@ -109,20 +134,20 @@ function parseCode(responseUrl: string): string {
 
 /**
  * 启动 Google 登录流程
- * - 弹出 Google 授权窗口
- * - 用户同意后拿到 authorization code
- * - 发给后端 → 后端用 secret 换 token → 颁发 sessionToken
+ * - launchWebAuthFlow 拿 id_token(隐式流,response_type=id_token)
+ * - POST {idToken, nonce} 给后端,后端用 jose + 本地静态 JWKS 验签
+ * - 后端零 HTTPS 出站,签名校验在服务器本地完成
  */
 export async function loginWithGoogle(): Promise<GoogleLoginResult> {
-  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.startsWith('YOUR_')) {
-    throw new Error(
-      'GOOGLE_CLIENT_ID 还没配置 — 请在 src/utils/syncConfig.ts 里填入你的 Client ID'
-    );
+  if (!GOOGLE_CLIENT_ID) {
+    throw new Error('GOOGLE_CLIENT_ID 还没配置 — 请在 src/utils/syncConfig.ts 里填入');
   }
 
-  // 1. 启动 OAuth flow
-  const authUrl = buildAuthUrl();
+  // 1. 生成 nonce 用于 auth url + 后端二次校验(防 replay)
+  const nonce = crypto.randomUUID();
 
+  // 2. 弹 Google 账号选择器
+  const authUrl = buildAuthUrl(nonce);
   const responseUrl = await browser.identity.launchWebAuthFlow({
     url: authUrl,
     interactive: true,
@@ -132,17 +157,15 @@ export async function loginWithGoogle(): Promise<GoogleLoginResult> {
     throw new Error('User cancelled Google login');
   }
 
-  // 2. 解析 code
-  const code = parseCode(responseUrl);
+  // 3. 从 fragment 解析 id_token
+  const idToken = parseIdToken(responseUrl);
 
-  // 3. 发给后端,后端用 secret 换 token → 颁发 sessionToken
+  // 4. 把 idToken + nonce 一起 POST 给后端,后端用 jose + 静态 JWKS 验签
+  //    (iss / aud / 签名 / exp / nonce)
   const res = await fetch(`${SYNC_API_BASE_URL}${SYNC_API.GOOGLE_LOGIN}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      code,
-      redirectUri: getRedirectUri(),
-    }),
+    body: JSON.stringify({ idToken, nonce }),
   });
 
   if (!res.ok) {
@@ -180,7 +203,7 @@ export async function readCurrentUser(): Promise<SyncUser | null> {
   return (await userCell.read()) ?? null;
 }
 
-/** 清除本地登录态(同时调后端 /sync/auth/logout 删除 sessionToken) */
+/** 清除本地登录态 */
 export async function clearLoginLocally(): Promise<void> {
   await Promise.all([sessionTokenCell.remove(), userCell.remove()]);
 }
