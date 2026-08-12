@@ -19,6 +19,7 @@ import {
   reorderShortcutsInGroup,
 } from '@/src/services/groups';
 import type { ShortcutGroup } from '@/src/utils/types';
+import { markDirty } from '@/src/utils/syncDirty';
 import { STORAGE_KEYS } from './keys';
 
 interface GroupsState {
@@ -33,6 +34,8 @@ let writeTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingValue: ShortcutGroup[] | null = null;
 const scheduleWrite = (value: ShortcutGroup[]): void => {
   pendingValue = value;
+  // 用户 mutation → 标脏亮红点。同步模块的写入绕过这里,不会误触发。
+  void markDirty('bookmarks');
   if (writeTimer) return;
   writeTimer = setTimeout(() => {
     const v = pendingValue;

@@ -33,6 +33,7 @@ import type { Shortcut, ShortcutGroup } from '@/src/utils/types';
 interface GroupLayoutProps {
   groups: ShortcutGroup[];
   shortcuts: Shortcut[];
+  bookmarksDirty?: boolean;
   onToggleGroupExpand: (id: string) => void;
   onAddGroup: (data: { name: string; color?: string }) => void;
   onUpdateGroup: (id: string, data: Partial<Omit<ShortcutGroup, 'id' | 'createdAt' | 'updatedAt'>>) => void;
@@ -119,6 +120,7 @@ function SortableGroupCard({
 export function GroupLayout({
   groups,
   shortcuts,
+  bookmarksDirty,
   onToggleGroupExpand,
   onAddGroup,
   onUpdateGroup,
@@ -343,14 +345,22 @@ export function GroupLayout({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setImportExportDialogOpen(true)}
-            title="导入导出"
-          >
-            <Download className="w-4 h-4" />
-          </Button>
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setImportExportDialogOpen(true)}
+              title="导入导出"
+            >
+              <Download className="w-4 h-4" />
+            </Button>
+            {bookmarksDirty && (
+              <span
+                title="有未同步到云端的本地书签,点开上传"
+                className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background"
+              />
+            )}
+          </div>
           <Button variant="outline" size="sm" onClick={handleAddGroup}>
             <Plus className="w-4 h-4 mr-1" />
             新建分组

@@ -11,7 +11,7 @@ export default defineConfig({
   manifest: {
     name: '序言',
     description: '简洁高效的新标签页',
-    permissions: ['storage', 'tabs', 'bookmarks'],
+    permissions: ['storage', 'tabs', 'bookmarks', 'identity', 'identity.email'],
     host_permissions: [
       'https://www.google.com/*',
       'https://*.google.com/*',

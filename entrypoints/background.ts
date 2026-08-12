@@ -1,7 +1,17 @@
 import { onMessage } from '@/messaging';
 import { storage } from '@wxt-dev/storage';
+import { setupSyncInit, pullAndMerge, uploadLocal, downloadCloud } from '@/src/utils/syncAuto';
+import { markDirty } from '@/src/utils/syncDirty';
+import {
+  loginWithGoogle,
+  saveLoginLocally,
+  readSessionToken,
+  readCurrentUser,
+  clearLoginLocally,
+} from '@/src/utils/googleAuth';
+import { SYNC_API_BASE_URL, SYNC_API } from '@/src/utils/syncConfig';
 import { LOCAL_STORAGE_KEY, SESSION_LIMITS } from '@/src/utils/constants';
-import type { Shortcut, ShortcutGroup, TabSession, TabInfo, SyncResult } from '@/src/utils/types';
+import type { Shortcut, TabSession, TabInfo } from '@/src/utils/types';
 
 // 存储键（带 local: 前缀，详见 LOCAL_STORAGE_KEY）
 const SHORTCUTS_KEY = LOCAL_STORAGE_KEY.SHORTCUTS;
@@ -10,39 +20,94 @@ const TAB_SESSIONS_KEY = LOCAL_STORAGE_KEY.TAB_SESSIONS;
 
 /*
  * ============================================================================
- * ⚠️ 云同步代码暂时禁用 — 等待接入后端
+ * 云同步说明(手动同步模型)
  * ============================================================================
  *
- * 当前实现依赖 chrome.storage.sync（8KB 单条 / 100KB 总配额），存在多个
- * 已知问题（详见 docs/2026-06-02-cloud-sync-fix-plan.md）：
- *   - splitStringByBytes 仍有边界场景可能切坏 UTF-8
- *   - 100KB 总配额不够装一个中等用户的会话数据
- *   - 多设备冲突检测只是基础版，可能丢更新
- *   - 没有断点续传，上传中途断网 = 丢全部
+ * 当前方案:独立后端 (SYNC_API_BASE_URL) + Google OAuth 授权码模式。
+ *   - setupSyncInit() 只初始化 deviceId,不再订阅自动 push
+ *   - 'sync/on-new-tab'  首次/距上次>30min 时 pullAndMerge(由 newtab 节流)
+ *   - 'sync/upload'      手动上传(本地→云)
+ *   - 'sync/download'    手动下载(云→本地)
+ *   - 用户改书签/会话 → markDirty → UI 红点;上传/下载成功 → clearDirty
+ *   - 详细逻辑在 src/utils/syncAuto.ts,脏标记在 src/utils/syncDirty.ts,
+ *     鉴权在 src/utils/googleAuth.ts
  *
- * 后续计划：搭建独立后端（REST/GraphQL）后再启用，chrome.storage.sync 仅作
- * 离线缓存。
- *
- * 临时策略：
- *   - 4 个 sync-* message handler 改为返回维护中错误（stub 见文件末尾）
- *   - 辅助函数、常量、并发改锁、回滚逻辑全部保留在注释里，待后端就绪后恢复
- *
- * ⚠️ 同步修改：
- *   - messaging/index.ts 已加注释标注临时不可用
- *   - entrypoints/popup/SessionTab.tsx UI 按钮已 disabled（保留调用走 try/catch）
- *   - src/components/ImportExportDialog.tsx UI 按钮已 disabled
- *
- * 解封步骤：
- *   1. 删除下面的 CLOUD SYNC DISABLED 注释块（行 ~287-645）
- *   2. 删除文件末尾 4 个 stub handler，恢复原来的 onMessage 调用
- *   3. 在 messaging/index.ts 移除同步协议上的"维护中"注释
+ * 文件下方 (CLOUD SYNC DISABLED 注释块) 是旧的 chrome.storage.sync 实现,
+ * 已废弃,仅留作参考。新的后端方案不依赖 chrome.storage.sync。
  * ============================================================================
  */
 
 export default defineBackground(() => {
   console.log('[Extension] Background script loaded', { id: browser.runtime.id });
 
-  // 注册消息处理器 - 快捷方式
+  // init: 只初始化 deviceId(不再订阅自动 push)
+  setupSyncInit().catch((e) => console.warn('[sync] init failed:', e));
+
+  // ===== 手动同步 =====
+
+  // 新标签页打开时(newtab/App.tsx 节流:距上次>30min 才发)→ 拉取云端 + merge
+  onMessage('sync/on-new-tab', async () => {
+    const [bm, ss] = await Promise.all([
+      pullAndMerge('bookmarks'),
+      pullAndMerge('sessions'),
+    ]);
+    return { success: bm.success && ss.success, error: bm.error || ss.error };
+  });
+
+  // 手动上传:本地 → 云
+  onMessage('sync/upload', async ({ data: scope }) => {
+    return await uploadLocal(scope);
+  });
+
+  // 手动下载:云 → 本地
+  onMessage('sync/download', async ({ data: scope }) => {
+    return await downloadCloud(scope);
+  });
+
+  // ===== Auth =====
+
+  onMessage('auth/get-user', async () => {
+    return await readCurrentUser();
+  });
+
+  onMessage('auth/login', async () => {
+    try {
+      const { sessionToken, user } = await loginWithGoogle();
+      await saveLoginLocally(sessionToken, user);
+      // 登录后立即拉取云端 merge(把别的设备的数据拉下来)
+      void pullAndMerge('bookmarks').catch((e) => console.warn('[sync] post-login bookmarks pull failed:', e));
+      void pullAndMerge('sessions').catch((e) => console.warn('[sync] post-login sessions pull failed:', e));
+      return { success: true, user };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[Auth] login failed:', message);
+      return { success: false, error: message };
+    }
+  });
+
+  onMessage('auth/logout', async () => {
+    try {
+      const token = await readSessionToken();
+      if (token) {
+        try {
+          await fetch(`${SYNC_API_BASE_URL}${SYNC_API.GOOGLE_LOGOUT}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        } catch (e) {
+          console.warn('[Auth] backend logout failed (continuing):', e);
+        }
+      }
+      await clearLoginLocally();
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { success: false, error: message };
+    }
+  });
+
+  // ===== 快捷方式 / 书签 =====
+
   onMessage('shortcuts/get-all', async () => {
     const shortcuts = await storage.getItem<Shortcut[]>(SHORTCUTS_KEY);
     return shortcuts || [];
@@ -177,6 +242,9 @@ export default defineBackground(() => {
 
       await storage.setItem(TAB_SESSIONS_KEY, updatedSessions);
 
+      // 用户保存了新会话 → 标脏(红点提示去手动同步)
+      void markDirty('sessions');
+
       return { success: true, session: newSession };
     } catch (error) {
       console.error('[Background] Failed to save session:', error);
@@ -230,6 +298,10 @@ export default defineBackground(() => {
       }
 
       await storage.setItem(TAB_SESSIONS_KEY, filtered);
+
+      // 用户删除了会话 → 标脏
+      void markDirty('sessions');
+
       return { success: true };
     } catch (error) {
       console.error('[Background] Failed to delete session:', error);
@@ -592,21 +664,8 @@ export default defineBackground(() => {
   // ===== 4 个 message handler 全部走 withSyncLock 保护 =====
 
   // 会话同步（popup SessionTab 用）
-  onMessage('tab-sessions/sync-upload', () => withSyncLock(() => doSyncUpload('session')));
-  onMessage('tab-sessions/sync-download', () => withSyncLock(() => doSyncDownload('session')));
 
-  // 书签 + 分组同步（newtab ImportExportDialog 用）
-  onMessage('bookmarks/sync-upload', () => withSyncLock(() => doSyncUpload('bookmark')));
-  onMessage('bookmarks/sync-download', () => withSyncLock(() => doSyncDownload('bookmark')));
   */
 
-  // ⚠️ 云同步 stub — 后端就绪前占位
-  const SYNC_DISABLED_ERROR: SyncResult = {
-    success: false,
-    error: '云同步功能维护中，详见 docs/2026-06-02-cloud-sync-fix-plan.md',
-  };
-  onMessage('tab-sessions/sync-upload', () => SYNC_DISABLED_ERROR);
-  onMessage('tab-sessions/sync-download', () => SYNC_DISABLED_ERROR);
-  onMessage('bookmarks/sync-upload', () => SYNC_DISABLED_ERROR);
-  onMessage('bookmarks/sync-download', () => SYNC_DISABLED_ERROR);
+
 });

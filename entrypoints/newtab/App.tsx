@@ -11,8 +11,14 @@ import { useTheme } from '@/src/hooks/useTheme';
 import { useStoresReady } from '@/src/lib/useStoresReady';
 import { useStoreState } from '@/src/lib/store';
 import { settingsStore } from '@/src/store/settings';
+import { sendMessage } from '@/messaging';
 import { NEWTAB_NAVIGATED_EVENT, notifyNewtabNavigated } from '@/src/utils/navigationReset';
+import { readLastPullAt } from '@/src/utils/syncDirty';
+import { useDirty } from '@/src/hooks/useSync';
 import type { BackgroundSetting } from '@/src/utils/types';
+
+// 首次拉取节流:30min 内重复开 newtab 不重复拉(避免接口被打爆)
+const PULL_INTERVAL_MS = 30 * 60 * 1000;
 
 function App() {
   const storesReady = useStoresReady();
@@ -38,6 +44,7 @@ function App() {
   const { mounted } = useTheme();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [resetNonce, setResetNonce] = useState(0);
+  const bookmarksDirty = useDirty('bookmarks');
 
   const handleSearch = useCallback((q: string) => {
     if (!q.trim()) return;
@@ -51,6 +58,25 @@ function App() {
     window.addEventListener(NEWTAB_NAVIGATED_EVENT, handleNavigated);
     return () => window.removeEventListener(NEWTAB_NAVIGATED_EVENT, handleNavigated);
   }, []);
+
+  // 新标签页打开时:已登录 且 距上次首次拉取 >30min → 拉取云端 + merge
+  // (未登录时 background 的 pullAndMerge 会无网络 no-op,这里先判登录省一次消息往返)
+  useEffect(() => {
+    if (!storesReady) return;
+    (async () => {
+      const [user, last] = await Promise.all([
+        sendMessage('auth/get-user', undefined).catch(() => null),
+        readLastPullAt(),
+      ]);
+      if (!user) return;
+      const now = Date.now();
+      if (!last || now - last > PULL_INTERVAL_MS) {
+        sendMessage('sync/on-new-tab', undefined).catch((e) =>
+          console.warn('[sync] on-new-tab failed:', e),
+        );
+      }
+    })();
+  }, [storesReady]);
 
   // 等主题 + stores 初始化
   if (!mounted || !storesReady) {
@@ -124,6 +150,7 @@ function App() {
               key={'groups-' + resetNonce}
               groups={groups}
               shortcuts={shortcuts}
+              bookmarksDirty={bookmarksDirty}
               onToggleGroupExpand={toggleGroupExpand}
               onAddGroup={addGroup}
               onUpdateGroup={updateGroup}

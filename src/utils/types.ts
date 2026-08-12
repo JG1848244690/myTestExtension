@@ -40,11 +40,20 @@ export interface TabSession {
 }
 
 // 云同步结果
+// 云同步结果
+export interface SyncConflict {
+  error: "version mismatch";
+  currentVersion: number;
+  currentPayload: unknown;
+}
+
 export interface SyncResult {
   success: boolean;
   error?: string;
   lastSyncAt?: number;
-  count?: number; // 同步的会话数
+  count?: number;
+  /** 乐观锁冲突时返回,UI 弹窗让用户选择 */
+  conflict?: SyncConflict;
 }
 
 // 布局类型

@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Save, RotateCcw, Trash2, History, ExternalLink, Loader2, AlertCircle, CloudUpload, CloudDownload } from 'lucide-react';
+﻿import { useState, useEffect } from 'react';
+import { Save, RotateCcw, Trash2, History, ExternalLink, Loader2, AlertCircle, LogIn, LogOut, Mail, Upload, Download, Check } from 'lucide-react';
+import type { SyncUser } from '@/src/utils/googleAuth';
 import { Button } from '@/src/components/ui/button';
 import { sendMessage } from '@/messaging';
-import { storage } from '@wxt-dev/storage';
-import { LOCAL_STORAGE_KEY } from '@/src/utils/constants';
+import { useDirty } from '@/src/hooks/useSync';
 import type { TabSession } from '@/src/utils/types';
-
-const LAST_SYNC_KEY = LOCAL_STORAGE_KEY.LAST_SYNC;
 
 function SessionTab() {
   const [sessions, setSessions] = useState<TabSession[]>([]);
@@ -14,18 +12,29 @@ function SessionTab() {
   const [saving, setSaving] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [syncing, setSyncing] = useState<'upload' | 'download' | null>(null);
-  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
+  const [currentUser, setCurrentUser] = useState<SyncUser | null>(null);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const sessionsDirty = useDirty('sessions');
+  const [syncBusy, setSyncBusy] = useState<null | 'upload' | 'download'>(null);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [syncErr, setSyncErr] = useState<string | null>(null);
+
+  // 加载当前登录用户
+  const loadCurrentUser = async () => {
+    try {
+      const user = await sendMessage('auth/get-user', undefined);
+      setCurrentUser(user);
+    } catch (err) {
+      console.error('[SessionTab] Failed to load user:', err);
+    }
+  };
 
   // 加载会话列表
   const loadSessions = async () => {
     try {
-      const [list, lastSync] = await Promise.all([
-        sendMessage('tab-sessions/list', undefined),
-        storage.getItem<number>(LAST_SYNC_KEY),
-      ]);
+      const list = await sendMessage('tab-sessions/list', undefined);
       setSessions(list);
-      setLastSyncAt(lastSync ?? null);
     } catch (err) {
       console.error('[SessionTab] Failed to load sessions:', err);
       setError('加载会话失败');
@@ -35,6 +44,7 @@ function SessionTab() {
   };
 
   useEffect(() => {
+    loadCurrentUser();
     loadSessions();
   }, []);
 
@@ -90,50 +100,78 @@ function SessionTab() {
     }
   };
 
-  // 上传会话到云端
-  const handleSyncUpload = async () => {
-    setSyncing('upload');
-    setError(null);
+  // Google 登录
+  const handleLogin = async () => {
+    setLoginLoading(true);
+    setLoginError(null);
     try {
-      const result = await sendMessage('tab-sessions/sync-upload', undefined);
-      if (result.success) {
-        setLastSyncAt(result.lastSyncAt ?? Date.now());
+      const result = await sendMessage('auth/login', undefined);
+      if (result.success && result.user) {
+        setCurrentUser(result.user);
       } else {
-        setError(result.error || '上传失败');
+        setLoginError(result.error || '登录失败');
       }
     } catch (err) {
-      console.error('[SessionTab] Failed to sync upload:', err);
-      setError('上传失败');
+      console.error('[SessionTab] Login error:', err);
+      setLoginError(err instanceof Error ? err.message : '登录失败');
     } finally {
-      setSyncing(null);
+      setLoginLoading(false);
     }
   };
 
-  // 从云端下载会话
-  const handleSyncDownload = async () => {
-    // 二次确认: 下载会覆盖本地会话
-    const localCount = sessions.length;
-    const message = localCount > 0
-      ? `当前有 ${localCount} 个本地会话，确定要从云端下载并覆盖吗？\n\n该操作只清空本地会话存档,不影响书签和分组。`
-      : '确定要从云端下载会话吗？';
-
-    if (!window.confirm(message)) return;
-
-    setSyncing('download');
-    setError(null);
+  // 登出
+  const handleLogout = async () => {
+    if (!window.confirm('确定要退出登录吗?登出后云同步将不可用。')) return;
+    setLoginLoading(true);
+    setLoginError(null);
     try {
-      const result = await sendMessage('tab-sessions/sync-download', undefined);
+      const result = await sendMessage('auth/logout', undefined);
       if (result.success) {
-        setLastSyncAt(result.lastSyncAt ?? Date.now());
-        await loadSessions();
+        setCurrentUser(null);
       } else {
-        setError(result.error || '下载失败');
+        setLoginError(result.error || '登出失败');
       }
     } catch (err) {
-      console.error('[SessionTab] Failed to sync download:', err);
-      setError('下载失败');
+      console.error('[SessionTab] Logout error:', err);
+      setLoginError(err instanceof Error ? err.message : '登出失败');
     } finally {
-      setSyncing(null);
+      setLoginLoading(false);
+    }
+  };
+
+  // 会话云同步:上传 / 下载(手动覆盖式)
+  const handleSyncUpload = async () => {
+    setSyncBusy('upload');
+    setSyncMsg(null);
+    setSyncErr(null);
+    try {
+      const res = await sendMessage('sync/upload', 'sessions');
+      if (res.success) setSyncMsg('已上传到云端');
+      else setSyncErr(res.error || '上传失败');
+    } catch (err) {
+      setSyncErr(err instanceof Error ? err.message : '上传失败');
+    } finally {
+      setSyncBusy(null);
+    }
+  };
+
+  const handleSyncDownload = async () => {
+    if (!window.confirm('从云端下载将用云端会话覆盖本地,确定?')) return;
+    setSyncBusy('download');
+    setSyncMsg(null);
+    setSyncErr(null);
+    try {
+      const res = await sendMessage('sync/download', 'sessions');
+      if (res.success) {
+        setSyncMsg('已从云端下载');
+        await loadSessions(); // 本地会话已被覆盖,刷新列表
+      } else {
+        setSyncErr(res.error || '下载失败');
+      }
+    } catch (err) {
+      setSyncErr(err instanceof Error ? err.message : '下载失败');
+    } finally {
+      setSyncBusy(null);
     }
   };
 
@@ -169,46 +207,138 @@ function SessionTab() {
         )}
       </Button>
 
-      {/* 会话云同步区域 */}
-      <div className="border border-white/20 dark:border-black/10 rounded-lg p-2.5 space-y-2">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <CloudUpload className="w-3 h-3" />
-          会话云同步（跨设备恢复存档）
-          {lastSyncAt && (
-            <span className="ml-auto text-[10px] opacity-60">
-              上次同步: {getRelativeTime(lastSyncAt)}
+      {/* 会话云同步区块(仅登录后显示)见登录态下方 */}
+
+      {/* 登录态 */}
+      <div className="border border-white/20 dark:border-black/10 rounded-lg p-3 bg-muted/30">
+        {currentUser ? (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              {currentUser.picture ? (
+                <img
+                  src={currentUser.picture}
+                  alt=""
+                  className="w-7 h-7 rounded-full shrink-0"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-primary/20 text-primary text-xs font-medium flex items-center justify-center shrink-0">
+                  {(currentUser.name || currentUser.email)[0].toUpperCase()}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate">
+                  {currentUser.name || currentUser.email}
+                </div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {currentUser.email}
+                </div>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              disabled={loginLoading}
+              className="gap-1 h-7 text-xs"
+            >
+              <LogOut className="w-3 h-3" />
+              退出
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Mail className="w-3.5 h-3.5" />
+              未登录,云同步不可用
+            </div>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleLogin}
+              disabled={loginLoading}
+              className="gap-1 h-7 text-xs"
+            >
+              {loginLoading ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  登录中…
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-3 h-3" />
+                  Google 登录
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+        {loginError && (
+          <div className="flex items-center gap-2 text-xs text-red-500 mt-2">
+            <AlertCircle className="w-3 h-3 shrink-0" />
+            {loginError}
+          </div>
+        )}
+      </div>
+
+      {/* 会话云同步(登录后显示) */}
+      {currentUser && (
+        <div className="border border-white/20 dark:border-black/10 rounded-lg p-3 bg-muted/30 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium flex items-center gap-1.5">
+              会话云同步
+              {sessionsDirty && (
+                <span
+                  className="w-2 h-2 rounded-full bg-red-500"
+                  title="有未同步到云端的本地会话"
+                />
+              )}
             </span>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-1.5 h-8 text-xs"
+              disabled={syncBusy !== null}
+              onClick={handleSyncUpload}
+            >
+              {syncBusy === 'upload' ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Upload className="w-3 h-3" />
+              )}
+              上传到云
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 gap-1.5 h-8 text-xs"
+              disabled={syncBusy !== null}
+              onClick={handleSyncDownload}
+            >
+              {syncBusy === 'download' ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Download className="w-3 h-3" />
+              )}
+              从云下载
+            </Button>
+          </div>
+          {syncMsg && (
+            <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+              <Check className="w-3 h-3 shrink-0" />
+              {syncMsg}
+            </div>
+          )}
+          {syncErr && (
+            <div className="flex items-center gap-1 text-xs text-red-500">
+              <AlertCircle className="w-3 h-3 shrink-0" />
+              {syncErr}
+            </div>
           )}
         </div>
-        {/* ⚠️ 云同步维护中 — 后端就绪前按钮禁用，调用保留以便 try/catch 走错误分支 */}
-        <div className="text-[10px] text-amber-500 bg-amber-500/10 rounded px-2 py-1">
-          维护中：云同步功能暂时不可用（详见 docs/2026-06-02-cloud-sync-fix-plan.md）
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSyncUpload}
-            disabled // ⚠️ 维护中：禁用
-            title="云同步维护中"
-            className="flex-1 gap-1.5 h-8 text-xs"
-          >
-            <CloudUpload className="w-3 h-3" />
-            上传到云端
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSyncDownload}
-            disabled // ⚠️ 维护中：禁用
-            title="云同步维护中"
-            className="flex-1 gap-1.5 h-8 text-xs"
-          >
-            <CloudDownload className="w-3 h-3" />
-            从云端下载
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* 错误提示 */}
       {error && (
