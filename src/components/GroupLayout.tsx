@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Plus, Trash2, X, Move, Search, Download } from 'lucide-react';
+import { Plus, Trash2, X, Move, Search, UploadCloud, DownloadCloud, BookmarkPlus, Settings, ChevronDown } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -20,16 +20,23 @@ import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/src/components/ui/button';
 import { Checkbox } from '@/src/components/ui/checkbox';
 import { Input } from '@/src/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/src/components/ui/dropdown-menu';
 import { ShortcutGroupCard } from './ShortcutGroupCard';
 import { ShortcutCard } from './ShortcutCard';
 import { ShortcutDialog } from './ShortcutDialog';
 import { GroupDialog } from './GroupDialog';
 import { MigrateDialog } from './MigrateDialog';
-import { ImportExportDialog } from './ImportExportDialog';
 import { useDebounce } from '@/src/hooks/useDebounce';
 import { UI_CONFIG } from '@/src/utils/constants';
 import type { Shortcut, ShortcutGroup } from '@/src/utils/types';
 import { useI18n } from '@/src/i18n';
+import { sendMessage } from '@/messaging';
 
 interface GroupLayoutProps {
   groups: ShortcutGroup[];
@@ -141,7 +148,28 @@ export function GroupLayout({
   const { t } = useI18n();
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [shortcutDialogOpen, setShortcutDialogOpen] = useState(false);
-  const [importExportDialogOpen, setImportExportDialogOpen] = useState(false);
+  // 工具栏 3 个云操作按钮的状态提示(success / error)
+  const [cloudOpStatus, setCloudOpStatus] = useState<{
+    type: 'success' | 'error' | 'pending';
+    op: 'import' | 'upload' | 'download';
+    msg?: string;       // 失败时的服务器错误(可空)
+    count?: number;     // 导入成功时的书签数(只对 import 有意义)
+  } | null>(null);
+
+  // 渲染状态文字:pending → 对应 op 的 xxxPending 文案;success → xxxSuccess(count 走 {n});
+  // fail → 优先用服务器返回的 msg,fallback 到 xxxFail 文案
+  const cloudStatusText = (s: NonNullable<typeof cloudOpStatus>): string => {
+    if (s.type === 'pending') {
+      return t(`importExport.${s.op}Pending`);
+    }
+    if (s.type === 'success') {
+      if (s.op === 'import') {
+        return t('importExport.importGoogleBookmarksSuccess', { n: s.count ?? 0 });
+      }
+      return t(`importExport.${s.op}Success`);
+    }
+    return s.msg || t(`importExport.${s.op}Fail`);
+  };
   const [editingGroup, setEditingGroup] = useState<ShortcutGroup | null>(null);
   const [editingShortcut, setEditingShortcut] = useState<Shortcut | null>(null);
   const [currentGroupId, setCurrentGroupId] = useState<string | null>(null);
@@ -322,6 +350,91 @@ export function GroupLayout({
     setIsUngroupedSelectMode(false);
   };
 
+  // ===== 工具栏 3 个云操作 handlers =====
+
+  // 从 Chrome 书签(Google Bookmarks)导入 — 通过 browser.bookmarks API 读取
+  const handleImportFromGoogleBookmarks = async () => {
+    setCloudOpStatus({ type: 'pending', op: 'import' });
+    try {
+      const result = await sendMessage('shortcuts/import-from-newtab');
+      if (result?.success && result.shortcuts) {
+        // 走 addShortcuts(接受 { name, url }[],会自己生成 id/timestamps)
+        // 而不是 importShortcuts(要 Shortcut[]),所以不用补 id
+        const items = result.shortcuts as { name: string; url: string }[];
+        if (onAddShortcuts) {
+          await onAddShortcuts(items);
+        } else {
+          // fallback:逐个添加
+          for (const item of items) {
+            await onAddShortcut(item);
+          }
+        }
+        setCloudOpStatus({ type: 'success', op: 'import', count: items.length });
+      } else {
+        setCloudOpStatus({
+          type: 'error',
+          op: 'import',
+          msg: result?.error,
+        });
+      }
+    } catch (e) {
+      setCloudOpStatus({
+        type: 'error',
+        op: 'import',
+        msg: e instanceof Error ? e.message : undefined,
+      });
+    }
+    setTimeout(() => setCloudOpStatus((s) => (s?.op === 'import' ? null : s)), 3000);
+  };
+
+  // 上传到云 — 后端 jose 验签 sessionToken 后整包覆盖
+  const handleUploadToCloud = async () => {
+    setCloudOpStatus({ type: 'pending', op: 'upload' });
+    try {
+      const res = await sendMessage('sync/upload', 'bookmarks');
+      if (res?.success) {
+        setCloudOpStatus({ type: 'success', op: 'upload' });
+      } else {
+        setCloudOpStatus({
+          type: 'error',
+          op: 'upload',
+          msg: res?.error,
+        });
+      }
+    } catch (e) {
+      setCloudOpStatus({
+        type: 'error',
+        op: 'upload',
+        msg: e instanceof Error ? e.message : undefined,
+      });
+    }
+    setTimeout(() => setCloudOpStatus((s) => (s?.op === 'upload' ? null : s)), 3000);
+  };
+
+  // 从云下载 — 整包覆盖本地
+  const handleDownloadFromCloud = async () => {
+    setCloudOpStatus({ type: 'pending', op: 'download' });
+    try {
+      const res = await sendMessage('sync/download', 'bookmarks');
+      if (res?.success) {
+        setCloudOpStatus({ type: 'success', op: 'download' });
+      } else {
+        setCloudOpStatus({
+          type: 'error',
+          op: 'download',
+          msg: res?.error,
+        });
+      }
+    } catch (e) {
+      setCloudOpStatus({
+        type: 'error',
+        op: 'download',
+        msg: e instanceof Error ? e.message : undefined,
+      });
+    }
+    setTimeout(() => setCloudOpStatus((s) => (s?.op === 'download' ? null : s)), 3000);
+  };
+
   return (
     <div className="w-full max-w-4xl space-y-4">
       {/* 工具栏 */}
@@ -347,28 +460,73 @@ export function GroupLayout({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setImportExportDialogOpen(true)}
-              title={t('layout.importExport')}
-            >
-              <Download className="w-4 h-4" />
-            </Button>
-            {bookmarksDirty && (
-              <span
-                title={t('layout.dirtyHint')}
-                className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background"
-              />
-            )}
-          </div>
-          <Button variant="outline" size="sm" onClick={handleAddGroup}>
-            <Plus className="w-4 h-4 mr-1" />
-            {t('groups.newGroup')}
-          </Button>
+          {/* 工具栏操作:4 个功能合成一个 DropdownMenu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="relative">
+                <Settings className="w-4 h-4 mr-1" />
+                {t('layout.actions')}
+                <ChevronDown className="w-3 h-3 ml-1 opacity-60" />
+                {bookmarksDirty && (
+                  <span
+                    title={t('layout.dirtyHint')}
+                    className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background"
+                  />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem
+                onClick={handleImportFromGoogleBookmarks}
+                disabled={cloudOpStatus?.type === 'pending'}
+              >
+                <BookmarkPlus className="mr-2 h-4 w-4" />
+                {t('importExport.importGoogleBookmarks')}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleUploadToCloud}
+                disabled={cloudOpStatus?.type === 'pending'}
+              >
+                <UploadCloud className="mr-2 h-4 w-4" />
+                <span className="flex-1">{t('importExport.uploadToCloud')}</span>
+                {bookmarksDirty && (
+                  <span
+                    title={t('layout.dirtyHint')}
+                    className="ml-2 w-2 h-2 rounded-full bg-red-500 shrink-0"
+                  />
+                )}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleDownloadFromCloud}
+                disabled={cloudOpStatus?.type === 'pending'}
+              >
+                <DownloadCloud className="mr-2 h-4 w-4" />
+                {t('importExport.downloadFromCloud')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleAddGroup}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t('groups.newGroup')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
+
+      {/* 云操作状态提示(3s 自动消失) */}
+      {cloudOpStatus && (
+        <div
+          className={`text-xs mb-2 ${
+            cloudOpStatus.type === 'success'
+              ? 'text-green-600 dark:text-green-400'
+              : cloudOpStatus.type === 'error'
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-muted-foreground'
+          }`}
+        >
+          {cloudStatusText(cloudOpStatus)}
+        </div>
+      )}
 
       {/* 搜索结果提示 */}
       {debouncedQuery.trim() && (
@@ -580,27 +738,6 @@ export function GroupLayout({
         currentGroupId={null}
         onMigrate={handleUngroupedMigrate}
         selectedCount={ungroupedSelectedIds.size}
-      />
-
-      {/* 导入导出弹窗 */}
-      <ImportExportDialog
-        open={importExportDialogOpen}
-        onOpenChange={setImportExportDialogOpen}
-        shortcuts={shortcuts}
-        groups={groups}
-        onImport={(newShortcuts, newGroups) => {
-          onImportData?.(newShortcuts, newGroups);
-        }}
-        addShortcuts={async (items) => {
-          if (!onAddShortcuts) {
-            // fallback: 逐个添加
-            for (const item of items) {
-              await onAddShortcut(item);
-            }
-            return items.length;
-          }
-          return onAddShortcuts(items);
-        }}
       />
     </div>
   );

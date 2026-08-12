@@ -98,6 +98,7 @@ export const en: TranslationTree = {
     group: 'Groups',
     importExport: 'Import / Export',
     dirtyHint: 'Local bookmarks have not been synced to the cloud. Click to upload.',
+    actions: 'Actions',
   },
 
   settings: {
@@ -173,6 +174,13 @@ export const en: TranslationTree = {
     downloadConfirm: 'Downloading from the cloud will overwrite your local bookmarks. Continue?',
     uploadFail: 'Upload failed',
     downloadFail: 'Download failed',
+    // Toolbar 3 cloud action buttons
+    importGoogleBookmarks: 'Import from Google Bookmarks',
+    importGoogleBookmarksPending: 'Importing from Google Bookmarks…',
+    importGoogleBookmarksSuccess: 'Imported {n} bookmarks',
+    importGoogleBookmarksFail: 'Import failed',
+    uploadPending: 'Uploading to the cloud…',
+    downloadPending: 'Downloading from the cloud…',
     exportTitle: 'Export data',
     exportSummary: 'Export {shortcuts} shortcuts, {groups} groups',
     export: 'Export',

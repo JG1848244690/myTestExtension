@@ -98,6 +98,7 @@ export const zh_CN: TranslationTree = {
     group: '分组',
     importExport: '导入导出',
     dirtyHint: '有未同步到云端的本地书签,点开上传',
+    actions: '操作',
   },
 
   settings: {
@@ -173,6 +174,13 @@ export const zh_CN: TranslationTree = {
     downloadConfirm: '从云端下载将用云端书签覆盖本地,确定?',
     uploadFail: '上传失败',
     downloadFail: '下载失败',
+    // 工具栏 3 个云操作按钮(从 Google 书签导入 + 上传/下载云)
+    importGoogleBookmarks: '导入 Google 书签',
+    importGoogleBookmarksPending: '正在导入 Google 书签…',
+    importGoogleBookmarksSuccess: '已导入 {n} 个书签',
+    importGoogleBookmarksFail: '导入失败',
+    uploadPending: '正在上传到云…',
+    downloadPending: '正在从云端下载…',
     exportTitle: '导出数据',
     exportSummary: '导出 {shortcuts} 个书签,{groups} 个分组',
     export: '导出',

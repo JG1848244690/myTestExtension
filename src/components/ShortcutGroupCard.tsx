@@ -67,18 +67,19 @@ function SortableShortcutCard({
 
   return (
     <div ref={setNodeRef} style={style} className={cn("relative", isDragging && "z-50")}>
-      {/* 拖拽手柄 */}
+      {/* 拖拽手柄 — 放左上,跟右上 ⋯ 菜单错开避免 hover 冲突。
+          仅非选择模式显示(选择模式下 checkbox 在左上)。 */}
       {!isSelectMode && (
         <button
           {...attributes}
           {...listeners}
-          className="absolute top-1 right-1 z-20 p-1 rounded bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing hover:bg-muted"
+          className="absolute top-1 left-1 z-10 p-1 rounded bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing hover:bg-muted"
           aria-label={t('common.dragToReorder')}
         >
           <GripVertical className="w-3 h-3 text-muted-foreground" />
         </button>
       )}
-      {/* 选择模式的 checkbox */}
+      {/* 选择模式的 checkbox(留在左上,跟拖拽手柄互斥) */}
       {isSelectMode && (
         <div className="absolute top-1 left-1 z-10">
           <Checkbox
