@@ -103,10 +103,16 @@ export const groupsActions = {
     scheduleWrite(list);
   },
 
+  /**
+   * toggleExpand: 展开/折叠纯 UI 状态,**不触发 markDirty**(silent 模式)。
+   * 仍写 storage 让刷新后保留折叠状态,但不算「本地有未同步书签」。
+   * 如果 syncAuto 后续 pullAndMerge 时发现 local.isExpanded ≠ server.isExpanded
+   * 导致 merged ≠ serverPayload,会自己 markDirty(那是数据真实不一致)。
+   */
   toggleExpand(id: string) {
     const list = toggleGroupExpand(groupsStore.get().list, id);
     groupsStore.set({ list });
-    scheduleWrite(list);
+    scheduleWrite(list, true);  // silent: 不调 markDirty
   },
 
   addShortcut(groupId: string, shortcutId: string) {
