@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Settings } from 'lucide-react';
 import {
   loadBackgroundVideo,
@@ -52,27 +52,83 @@ function App() {
   const [resetNonce, setResetNonce] = useState(0);
   const bookmarksDirty = useDirty('bookmarks');
 
-  // 视频背景:从 IndexedDB 加载 blob → createObjectURL,卸载时 revoke
+  // 视频背景:ref 控制 video 元素(visibilitychange 时直接操作 DOM,不走 React 重渲染)
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  // 保存当前 blob URL 字符串,visibilitychange 切回时如果 src 被卸载可重新挂
+  const videoBlobUrlRef = useRef<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+
+  // 加载视频:从 IndexedDB 读 → blob URL → 设到 video 元素的 src + play
   useEffect(() => {
     if (background?.type !== 'video') {
+      const v = videoRef.current;
+      if (v) {
+        v.removeAttribute('src');
+        v.load();
+      }
+      if (videoBlobUrlRef.current) {
+        URL.revokeObjectURL(videoBlobUrlRef.current);
+        videoBlobUrlRef.current = null;
+      }
       setVideoUrl(null);
       return;
     }
-    let revoked = false;
     let blobUrl: string | null = null;
+    let cancelled = false;
     loadBackgroundVideo()
       .then((stored: StoredVideo | null) => {
-        if (revoked || !stored) return;
+        if (cancelled || !stored) return;
         blobUrl = URL.createObjectURL(stored.blob);
-        setVideoUrl(blobUrl);
+        videoBlobUrlRef.current = blobUrl;
+        const v = videoRef.current;
+        if (v) {
+          v.src = blobUrl;
+          v.muted = background.muted ?? true;
+          v.play().catch(() => {});
+        }
+        setVideoUrl(blobUrl); // 触发首次显示
       })
       .catch((e) => console.error('[bg] load video failed:', e));
     return () => {
-      revoked = true;
+      cancelled = true;
       if (blobUrl) URL.revokeObjectURL(blobUrl);
+      videoBlobUrlRef.current = null;
     };
-  }, [background?.type, background?.videoFileName]);
+  }, [background?.type, background?.videoFileName, background?.muted]);
+
+  // 可见性优化:tab 切到后台 → 暂停 + 10s 后卸载 src 释放 GPU/解码内存
+  //   切回来 → 如果 src 还在就直接 play,被卸载了从保存的 blob URL 恢复
+  useEffect(() => {
+    let unloadTimer: number | null = null;
+    const onVis = () => {
+      const v = videoRef.current;
+      if (!v) return;
+      if (document.hidden) {
+        v.pause();
+        // 10s 后才真卸载,避免快速切 tab 来回 load
+        unloadTimer = window.setTimeout(() => {
+          v.removeAttribute('src');
+          v.load(); // 释放解码缓冲 + GPU 显存
+        }, 10_000);
+      } else {
+        if (unloadTimer !== null) {
+          clearTimeout(unloadTimer);
+          unloadTimer = null;
+        }
+        // 恢复:src 被卸载过(>10s 隐藏)的话,从保存的 blob URL 重新挂
+        if (!v.src && videoBlobUrlRef.current) {
+          v.src = videoBlobUrlRef.current;
+          v.load();
+        }
+        v.play().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      if (unloadTimer !== null) clearTimeout(unloadTimer);
+    };
+  }, []);
 
   const handleSearch = useCallback((q: string) => {
     if (!q.trim()) return;
@@ -147,19 +203,19 @@ function App() {
 
   return (
     <div className="min-h-screen relative" style={getBackgroundStyle()}>
-      {/* 视频背景层(fixed 全屏铺底,opacity 由 setting.opacity 控制) */}
-      {background?.type === 'video' && videoUrl && (
+      {/* 视频背景层(fixed 全屏铺底,opacity 由 setting.opacity 控制)
+          src 不绑 React state,改用 ref 控制 — 配合 visibilitychange 优化,
+          切 tab 时 pause / 卸载 src 不触发 React 重渲染 */}
+      {background?.type === 'video' && (
         <video
-          key={videoUrl}
+          ref={videoRef}
           autoPlay
           loop
           muted={background.muted ?? true}
           playsInline
           className="fixed inset-0 w-full h-full object-cover z-0"
           style={{ opacity: background.opacity ?? 1 }}
-        >
-          <source src={videoUrl} type="video/mp4" />
-        </video>
+        />
       )}
       {background?.type === 'image' && background.imageUrl && (
         <div className="fixed inset-0 z-0" style={getOverlayStyle()} />

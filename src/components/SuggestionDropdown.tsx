@@ -106,7 +106,7 @@ export function SuggestionDropdown({
       <div
         ref={listRef}
         data-suggestion-list
-        className="overflow-y-auto max-h-[360px]"
+        className="overflow-y-auto overflow-x-hidden max-h-[360px]"
       >
         {groups.map((group, groupIndex) => {
           // group.title 可能是 '历史记录'/'快捷方式'/'搜索建议'(默认 zh_CN);

@@ -207,7 +207,7 @@ export function ShortcutGrid({
 
         {/* 网格容器 - 固定高度，内部滚动 */}
         <div
-          className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 max-h-70 overflow-y-auto p-1 pt-2 scroll-container"
+          className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 max-h-70 overflow-y-auto overflow-x-hidden p-1 pt-2 scroll-container"
         >
           {filteredShortcuts.map((shortcut) => (
             <div key={shortcut.id} className="relative">

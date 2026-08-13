@@ -244,7 +244,7 @@ export function SettingsSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        className="w-80 sm:max-w-80 overflow-y-auto
+        className="w-80 sm:max-w-80 overflow-y-auto overflow-x-hidden
           bg-white/20 dark:bg-black/20
           backdrop-blur-xl
           border-l border-white/20 dark:border-black/10

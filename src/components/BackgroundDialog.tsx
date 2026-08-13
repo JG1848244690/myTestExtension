@@ -102,7 +102,7 @@ export function BackgroundDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader className="pb-4">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <Palette className="w-5 h-5" />

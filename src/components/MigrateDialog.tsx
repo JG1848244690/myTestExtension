@@ -54,7 +54,7 @@ export function MigrateDialog({
             {t('groups.migrateDesc', { n: selectedCount })}
           </DialogDescription>
         </DialogHeader>
-        <div className="max-h-[300px] overflow-y-auto mt-2">
+        <div className="max-h-[300px] overflow-y-auto overflow-x-hidden mt-2">
           <div className="space-y-1">
             {/* 未分组选项 - 仅当不在未分组时显示 */}
             {currentGroupId !== null && (
