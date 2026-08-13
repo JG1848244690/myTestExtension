@@ -284,12 +284,12 @@ export function SettingsSheet({
           {/* 背景类型选择 */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">{t('settings.bg.typeLabel')}</Label>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 variant={type === 'none' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => handleTypeChange('none')}
-                className="flex-1"
+                className="gap-1.5"
               >
                 {t('settings.bg.type.none')}
               </Button>
@@ -297,7 +297,7 @@ export function SettingsSheet({
                 variant={type === 'color' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => handleTypeChange('color')}
-                className="flex-1 gap-1.5"
+                className="gap-1.5"
               >
                 <Palette className="w-3.5 h-3.5" />
                 {t('settings.bg.type.color')}
@@ -306,7 +306,7 @@ export function SettingsSheet({
                 variant={type === 'image' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => handleTypeChange('image')}
-                className="flex-1 gap-1.5"
+                className="gap-1.5"
               >
                 <Image className="w-3.5 h-3.5" />
                 {t('settings.bg.type.image')}
@@ -315,7 +315,7 @@ export function SettingsSheet({
                 variant={type === 'video' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => handleTypeChange('video')}
-                className="flex-1 gap-1.5"
+                className="gap-1.5"
               >
                 <Video className="w-3.5 h-3.5" />
                 {t('settings.bg.type.video')}
