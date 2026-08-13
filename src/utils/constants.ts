@@ -46,6 +46,10 @@ export const DEFAULT_SHORTCUTS = [
 // 默认分组
 export const DEFAULT_GROUPS: ShortcutGroup[] = [];
 
+// 系统 dock 分组 id:dock 布局专属,group 布局隐藏不渲染
+// (参与云同步 — 用户的 dock 书签本身就该跨设备同步)
+export const DOCK_GROUP_ID = 'sys-dock';
+
 // 分组颜色选项
 export const GROUP_COLORS = [
   { name: '蓝色', value: 'blue' },

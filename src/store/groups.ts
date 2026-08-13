@@ -6,7 +6,7 @@ import { createStore } from '@/src/lib/store';
 import { createStorageCell } from '@/src/lib/storage';
 import { safeRead, v } from '@/src/schemas';
 import { groupSchema } from '@/src/schemas';
-import { DEFAULT_GROUPS } from '@/src/utils/constants';
+import { DEFAULT_GROUPS, DOCK_GROUP_ID } from '@/src/utils/constants';
 import {
   addGroup,
   updateGroup,
@@ -75,7 +75,25 @@ export async function initGroupsStore(): Promise<void> {
     });
 
     const raw = await cell.read();
-    const list = safeRead(v.array(groupSchema), raw, DEFAULT_GROUPS);
+    let list = safeRead(v.array(groupSchema), raw, DEFAULT_GROUPS);
+    // 确保系统 dock 分组存在(dock 布局用它存书签,group 布局过滤掉不渲染)
+    if (!list.some((g) => g.id === DOCK_GROUP_ID)) {
+      const now = Date.now();
+      list = [
+        ...list,
+        {
+          id: DOCK_GROUP_ID,
+          name: 'Dock',
+          color: 'blue',
+          shortcutIds: [],
+          isExpanded: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ];
+      // 持久化新分组(必须 silent,这是初始化,不算用户 dirty)
+      await cell.write(list);
+    }
     groupsStore.replace({ list, loaded: true });
   } catch (e) {
     console.error('[groups] init failed:', e);

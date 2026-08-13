@@ -33,7 +33,7 @@ import { ShortcutDialog } from './ShortcutDialog';
 import { GroupDialog } from './GroupDialog';
 import { MigrateDialog } from './MigrateDialog';
 import { useDebounce } from '@/src/hooks/useDebounce';
-import { UI_CONFIG } from '@/src/utils/constants';
+import { UI_CONFIG, DOCK_GROUP_ID } from '@/src/utils/constants';
 import type { Shortcut, ShortcutGroup } from '@/src/utils/types';
 import { useI18n } from '@/src/i18n';
 import { sendMessage } from '@/messaging';
@@ -222,9 +222,11 @@ export function GroupLayout({
 
   // 搜索过滤逻辑
   const filteredData = useMemo(() => {
+    // 过滤掉系统 dock 分组(group 布局不展示)
+    const visibleGroups = groups.filter((g) => g.id !== DOCK_GROUP_ID);
     if (!debouncedQuery.trim()) {
       return {
-        groups: groups.map(group => ({
+        groups: visibleGroups.map(group => ({
           group,
           shortcuts: getGroupShortcuts(group),
         })),
@@ -239,7 +241,7 @@ export function GroupLayout({
       s.url.toLowerCase().includes(query);
 
     // 过滤分组
-    const filteredGroups = groups.map(group => {
+    const filteredGroups = visibleGroups.map(group => {
       const groupShortcuts = getGroupShortcuts(group).filter(matchesSearch);
       return { group, shortcuts: groupShortcuts };
     }).filter(item => item.shortcuts.length > 0);

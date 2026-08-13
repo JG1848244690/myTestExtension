@@ -21,6 +21,7 @@ import { NEWTAB_NAVIGATED_EVENT, notifyNewtabNavigated } from '@/src/utils/navig
 import { readLastPullAt } from '@/src/utils/syncDirty';
 import { useDirty } from '@/src/hooks/useSync';
 import type { BackgroundSetting } from '@/src/utils/types';
+import { DOCK_GROUP_ID } from '@/src/utils/constants';
 import { useI18n } from '@/src/i18n';
 import { cn } from '@/src/lib/utils';
 
@@ -145,6 +146,24 @@ function App() {
     return () => window.removeEventListener(NEWTAB_NAVIGATED_EVENT, handleNavigated);
   }, []);
 
+  /**
+   * dock 一次性迁移:首次启动 / 老用户升级
+   * 条件:dock 组存在 + 空 + 有 ungrouped 快捷方式
+   * 触发:把 ungrouped 的快捷方式全部搬进 dock 组
+   * 设计:用户切到 dock 模式前不打扰;一次性,跑过就再也跑
+   * 注意:这条 effect 在 storesReady 之前可能拿到空 groups,所以加 storesReady 保护
+   */
+  useEffect(() => {
+    if (!storesReady) return;
+    const dockGroup = groups.find((g) => g.id === DOCK_GROUP_ID);
+    if (!dockGroup || dockGroup.shortcutIds.length > 0) return;
+    const ungroupedIds = getUngroupedShortcutIds(shortcuts.map((s) => s.id));
+    if (ungroupedIds.length === 0) return;
+    moveShortcutsToGroup(null, DOCK_GROUP_ID, ungroupedIds);
+    // 依赖只读 storesReady 触发一次即可
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storesReady]);
+
   // 新标签页打开时:已登录 且 距上次首次拉取 >30min → 拉取云端 + merge
   // (未登录时 background 的 pullAndMerge 会无网络 no-op,这里先判登录省一次消息往返)
   useEffect(() => {
@@ -258,14 +277,6 @@ function App() {
                 key={'dock-' + resetNonce}
                 shortcuts={shortcuts}
                 groups={groups}
-                ungroupedIds={getUngroupedShortcutIds(shortcuts.map((s) => s.id))}
-                onAdd={addShortcut}
-                onUpdate={updateShortcut}
-                onRemove={removeShortcut}
-                onBatchRemove={removeShortcuts}
-                onMoveShortcutsToGroup={moveShortcutsToGroup}
-                onAddGroup={addGroup}
-                onImportData={handleImportData}
               />
             ) : (
               <GroupLayout

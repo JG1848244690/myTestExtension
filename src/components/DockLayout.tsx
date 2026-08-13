@@ -2,8 +2,8 @@
  * 底部 macOS 风格 dock 栏布局(手写,0 依赖)
  *
  * 视觉:半透明毛玻璃 + 鼠标靠近的图标放大,周围图标轻微扩展
- * 内容:显示未分组的快捷方式
- * 交互:点击打开网址(排序留待 dock 内拖拽后续补 ungrouped reorder API)
+ * 内容:从系统 dock 分组(DOCK_GROUP_ID)拉书签 — 用户切回 group 布局可编辑该分组
+ * 交互:点击打开网址(排序走 group 布局对 dock 分组的 reorderShortcutsInGroup)
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -11,6 +11,7 @@ import type { Shortcut, ShortcutGroup } from '@/src/utils/types';
 import { notifyNewtabNavigated } from '@/src/utils/navigationReset';
 import { cn } from '@/src/lib/utils';
 import { useI18n } from '@/src/i18n';
+import { DOCK_GROUP_ID } from '@/src/utils/constants';
 import {
   getFaviconWithFallback,
   generateInitialFallback,
@@ -19,15 +20,6 @@ import {
 interface DockLayoutProps {
   shortcuts: Shortcut[];
   groups: ShortcutGroup[];
-  /** 未分组快捷方式 id 列表(从 useGroupsStore.getUngroupedShortcutIds 来) */
-  ungroupedIds: string[];
-  onAdd: (data: { name: string; url: string; icon?: string }) => void;
-  onUpdate: (id: string, data: Partial<Omit<Shortcut, 'id' | 'createdAt' | 'updatedAt'>>) => void;
-  onRemove: (id: string) => void;
-  onBatchRemove?: (ids: string[]) => void;
-  onMoveShortcutsToGroup?: (sourceGroupId: string | null, targetGroupId: string | null, shortcutIds: string[]) => void;
-  onAddGroup: (data: { name: string; color?: string }) => void;
-  onImportData?: (shortcuts: Shortcut[], groups: ShortcutGroup[]) => void;
 }
 
 // magnification 参数
@@ -170,13 +162,13 @@ function Dock({ children }: { children: React.ReactNode[] }) {
 
 export function DockLayout({
   shortcuts,
-  ungroupedIds,
-  onAddGroup,
+  groups,
 }: DockLayoutProps) {
   const { t } = useI18n();
 
-  // 列出未分组
-  const dockShortcuts = ungroupedIds
+  // 从系统 dock 分组拉书签(默认有,但先防御下,避免初始化竞态)
+  const dockGroup = groups.find((g) => g.id === DOCK_GROUP_ID);
+  const dockShortcuts = (dockGroup?.shortcutIds ?? [])
     .map((id) => shortcuts.find((s) => s.id === id))
     .filter((s): s is Shortcut => s !== undefined);
 
