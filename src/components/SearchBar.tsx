@@ -164,7 +164,7 @@ export function SearchBar({
           <SelectContent className="z-[10000]">
             {engineOptions.map((option) => (
               <SelectItem key={option.id} value={option.id}>
-                {option.icon} {getEngineName(option)}
+                {getEngineName(option)}
               </SelectItem>
             ))}
           </SelectContent>

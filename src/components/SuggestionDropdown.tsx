@@ -93,10 +93,8 @@ export function SuggestionDropdown({
         'fixed z-[10001]',
         'bg-white/10 dark:bg-black/10 backdrop-blur-xl',
         'border border-white/20 dark:border-black/10 rounded-xl shadow-2xl',
-        // 之前是 'animate-in fade-in-0 slide-in-from-top-2 duration-200',
-        // slide-in-from-top-2 会让下拉从 -8px 高度滑下来,在 newtab 顶部居中的 input
-        // 下方看起来像从「左上角」掉下来。删 slide 只留 fade,直接淡入到位。
-        'overflow-hidden animate-in fade-in-0 duration-150'
+        // 临时测试:去掉所有动画,纯静态
+        'overflow-hidden'
       )}
       style={{
         top: position.top,
