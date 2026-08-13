@@ -183,8 +183,8 @@ export function DockLayout({
 
   return (
     <>
-      {/* dock 主体:绝对居中,独立于父级 flex 链,不受搜索框 hide 影响 */}
-      <div className="fixed inset-0 z-10 flex items-center justify-center pointer-events-none">
+      {/* dock 主体:固定底部 + 水平居中 */}
+      <div className="fixed bottom-6 left-0 right-0 z-10 flex justify-center pointer-events-none">
         <div className="pointer-events-auto">
           {dockShortcuts.length > 0 ? (
             <Dock>
@@ -204,7 +204,7 @@ export function DockLayout({
         </div>
       </div>
 
-      {/* 左下:工具按钮(fixed,不影响中央 dock 居中) */}
+      {/* 左下:工具按钮(fixed,不影响 dock 居中) */}
       <button
         onClick={() => {
           const name = prompt(t('groups.groupNamePlaceholder') as string);

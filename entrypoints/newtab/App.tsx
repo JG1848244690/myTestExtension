@@ -236,20 +236,18 @@ function App() {
         </div>
 
         <div className="min-h-screen flex flex-col items-center px-8 pt-8">
-          {/* 主搜索框:只在 group 模式显示(dock 模式自带 dock 视觉) */}
-          {layout !== 'dock' && (
-            <div className="w-full max-w-3xl relative z-50 mb-6">
-              <SearchBar
-                key={'search-' + resetNonce}
-                engine={engine}
-                engineOption={engineOption}
-                engineOptions={engineOptions}
-                onEngineChange={setEngine}
-                onSearch={handleSearch}
-                shortcuts={shortcuts}
-              />
-            </div>
-          )}
+          {/* 主搜索框:两种布局都显示在顶部 */}
+          <div className="w-full max-w-3xl relative z-50 mb-6">
+            <SearchBar
+              key={'search-' + resetNonce}
+              engine={engine}
+              engineOption={engineOption}
+              engineOptions={engineOptions}
+              onEngineChange={setEngine}
+              onSearch={handleSearch}
+              shortcuts={shortcuts}
+            />
+          </div>
 
           <div className={cn(
             "w-full flex-1",
@@ -296,7 +294,10 @@ function App() {
         </div>
 
         <div className="fixed bottom-4 left-0 right-0 text-center text-muted-foreground text-sm">
-          {t('common.appName')} · {t('common.shortcutCount', { n: shortcuts.length })}
+          {/* dock 模式隐藏 footer(给 dock 让位) */}
+          {layout !== 'dock' && (
+            <>{t('common.appName')} · {t('common.shortcutCount', { n: shortcuts.length })}</>
+          )}
         </div>
       </div>
 
