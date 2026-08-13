@@ -22,6 +22,7 @@ import { readLastPullAt } from '@/src/utils/syncDirty';
 import { useDirty } from '@/src/hooks/useSync';
 import type { BackgroundSetting } from '@/src/utils/types';
 import { useI18n } from '@/src/i18n';
+import { cn } from '@/src/lib/utils';
 
 // 首次拉取节流:30min 内重复开 newtab 不重复拉(避免接口被打爆)
 const PULL_INTERVAL_MS = 30 * 60 * 1000;
@@ -235,19 +236,25 @@ function App() {
         </div>
 
         <div className="min-h-screen flex flex-col items-center px-8 pt-8">
-          <div className="w-full max-w-3xl relative z-50 mb-6">
-            <SearchBar
-              key={'search-' + resetNonce}
-              engine={engine}
-              engineOption={engineOption}
-              engineOptions={engineOptions}
-              onEngineChange={setEngine}
-              onSearch={handleSearch}
-              shortcuts={shortcuts}
-            />
-          </div>
+          {/* 主搜索框:只在 group 模式显示(dock 模式自带 dock 视觉) */}
+          {layout !== 'dock' && (
+            <div className="w-full max-w-3xl relative z-50 mb-6">
+              <SearchBar
+                key={'search-' + resetNonce}
+                engine={engine}
+                engineOption={engineOption}
+                engineOptions={engineOptions}
+                onEngineChange={setEngine}
+                onSearch={handleSearch}
+                shortcuts={shortcuts}
+              />
+            </div>
+          )}
 
-          <div className="w-full max-w-4xl flex-1 mt-16">
+          <div className={cn(
+            "w-full flex-1",
+            layout === 'dock' ? "max-w-none" : "max-w-4xl mt-16"
+          )}>
             {layout === 'dock' ? (
               <DockLayout
                 key={'dock-' + resetNonce}

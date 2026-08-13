@@ -62,9 +62,6 @@ importers:
       react-dom:
         specifier: ^19.2.4
         version: 19.2.4(react@19.2.4)
-      react-osx-dock:
-        specifier: ^2.0.0
-        version: 2.0.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.5.0
@@ -2126,12 +2123,6 @@ packages:
     resolution: {integrity: sha512-AXJdLo8kgMbimY95O2aKQqsz2iWi9jMgKJhRBAxECE4IFxfcazB2LmzloIoibJI3C12IlY20+KFaLv+71bUJeQ==}
     peerDependencies:
       react: ^19.2.4
-
-  react-osx-dock@2.0.0:
-    resolution: {integrity: sha512-/ZFs6Z1h6bNly72rAcs0HvQM2uLg06tWm/NqCJwPB3R13QW1xMtidPKWg3Px0jdYSL0nLYOhVwecMb55qaKb1w==}
-    peerDependencies:
-      react: '>= 18.0.0'
-      react-dom: '>= 18.0.0'
 
   react-remove-scroll-bar@2.3.8:
     resolution: {integrity: sha512-9r+yi9+mgU33AKcj6IbT9oRCO78WriSj6t/cF8DWBZJ9aOGPOTEDvdUDz1FwKim7QXWwmHqtdHnRJfhAxEG46Q==}
@@ -4361,11 +4352,6 @@ snapshots:
     dependencies:
       react: 19.2.4
       scheduler: 0.27.0
-
-  react-osx-dock@2.0.0(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
-    dependencies:
-      react: 19.2.4
-      react-dom: 19.2.4(react@19.2.4)
 
   react-remove-scroll-bar@2.3.8(@types/react@19.2.14)(react@19.2.4):
     dependencies:

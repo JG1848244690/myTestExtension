@@ -1,26 +1,13 @@
 /**
- * 底部 macOS 风格 dock 栏布局
+ * 底部 macOS 风格 dock 栏布局(手写,0 依赖)
  *
- * 替代 GroupLayout 的"分组卡片"布局,中央留出搜索框空间,让视频/图片背景
- * 成为视觉主体。底层用 react-osx-dock 处理 magnification 动画。
- *
- * 内容显示:
- *   - 顶部固定搜索框(由父组件 App.tsx 渲染)
- *   - 底部 dock 栏(fixed bottom,水平居中)
- *   - dock 显示未分组的快捷方式(同 GroupLayout 的 ungrouped 概念)
- *   - 分组处理:暂时不显示在 dock 里,简化布局(后续可加"分组弹出")
- *
- * 交互:
- *   - 点击:window.open 打开网址
- *   - 拖拽:@dnd-kit/sortable 排序(沿用 GroupLayout 的 onReorderShortcuts)
- *   - hover:react-osx-dock 处理 magnification
+ * 视觉:半透明毛玻璃 + 鼠标靠近的图标放大,周围图标轻微扩展
+ * 内容:显示未分组的快捷方式
+ * 交互:点击打开网址(排序留待 dock 内拖拽后续补 ungrouped reorder API)
  */
 
-import { useEffect, useState } from 'react';
-import { Dock } from 'react-osx-dock';
-import { Search, Plus } from 'lucide-react';
-import { useDebounce } from '@/src/hooks/useDebounce';
-import { UI_CONFIG } from '@/src/utils/constants';
+import React, { useEffect, useRef, useState } from 'react';
+import { Plus } from 'lucide-react';
 import type { Shortcut, ShortcutGroup } from '@/src/utils/types';
 import { notifyNewtabNavigated } from '@/src/utils/navigationReset';
 import { cn } from '@/src/lib/utils';
@@ -40,14 +27,24 @@ interface DockLayoutProps {
   onRemove: (id: string) => void;
   onBatchRemove?: (ids: string[]) => void;
   onMoveShortcutsToGroup?: (sourceGroupId: string | null, targetGroupId: string | null, shortcutIds: string[]) => void;
-  // 暂时不接 onReorderShortcuts:group 模式排序由 GroupLayout 处理;
-  // dock 内排序需要 ungrouped reorder API(useGroupsStore 还没有),后续补
   onAddGroup: (data: { name: string; color?: string }) => void;
   onImportData?: (shortcuts: Shortcut[], groups: ShortcutGroup[]) => void;
 }
 
-// 单个 dock item,简化为 click-only(排序暂不接,dock 内拖拽后续补 ungrouped reorder API)
-function DockItem({ shortcut }: { shortcut: Shortcut }) {
+// magnification 参数
+const ITEM_BASE_PX = 52; // 基础宽高
+const ITEM_HOVER_PX = 70; // 放大目标
+const NEIGHBOR_HOVER_PX = 60; // 邻居轻微放大
+
+// 单个 dock item
+function DockItem({
+  shortcut,
+  scale,
+}: {
+  shortcut: Shortcut;
+  /** 0~1,1 表示完全放大;0 表示基础尺寸;0.4~0.7 表示邻居 */
+  scale: number;
+}) {
   const [faviconSrc, setFaviconSrc] = useState<string | null>(null);
   useEffect(() => {
     let mounted = true;
@@ -63,6 +60,8 @@ function DockItem({ shortcut }: { shortcut: Shortcut }) {
     };
   }, [shortcut.url, shortcut.name]);
 
+  // 用 CSS 变量传递 scale,过渡动画走 transform,避免 reflow
+  const size = ITEM_BASE_PX + (ITEM_HOVER_PX - ITEM_BASE_PX) * scale;
   return (
     <button
       onClick={() => {
@@ -70,20 +69,30 @@ function DockItem({ shortcut }: { shortcut: Shortcut }) {
         notifyNewtabNavigated();
       }}
       title={shortcut.name}
+      style={
+        {
+          width: `${size}px`,
+          height: `${size}px`,
+          // 邻居轻微向上抬一点,模拟 macOS 凸起
+          transform: `translateY(${-6 * scale}px)`,
+          transitionDuration: '180ms',
+        } as React.CSSProperties
+      }
       className={cn(
-        'w-12 h-12 rounded-2xl cursor-pointer',
-        'bg-white/10 dark:bg-black/20 backdrop-blur-xl',
-        'border border-white/20 dark:border-black/10',
-        'flex items-center justify-center overflow-hidden',
-        'shadow-md shadow-black/20',
-        'hover:shadow-xl hover:shadow-black/30'
+        'shrink-0 rounded-2xl cursor-pointer overflow-hidden',
+        'bg-white/15 dark:bg-black/30 backdrop-blur-2xl',
+        'border border-white/25 dark:border-white/10',
+        'flex items-center justify-center',
+        'shadow-md shadow-black/15',
+        'transition-all ease-out',
       )}
     >
       {faviconSrc ? (
         <img
           src={faviconSrc}
           alt={shortcut.name}
-          className="w-7 h-7 rounded"
+          className="rounded pointer-events-none"
+          style={{ width: '60%', height: '60%' }}
           draggable={false}
         />
       ) : (
@@ -95,122 +104,120 @@ function DockItem({ shortcut }: { shortcut: Shortcut }) {
   );
 }
 
-export function DockLayout({
-  shortcuts,
-  ungroupedIds,
-  onAdd,
-  onAddGroup,
-}: DockLayoutProps) {
-  const { t } = useI18n();
-  const [searchQuery, setSearchQuery] = useState('');
-  const debouncedQuery = useDebounce(searchQuery, UI_CONFIG.SEARCH_DEBOUNCE_DELAY);
+/**
+ * 手写 dock:鼠标在容器内移动 → 计算每个 item 与鼠标的距离 → 映射到 scale
+ * 距离越近 scale 越大(最大 1),距离 ≤ 60px 给 0.5 邻居缩放,其余 0
+ */
+function Dock({ children }: { children: React.ReactNode[] }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const itemCount = Array.isArray(children) ? children.length : 1;
 
-  // 列出未分组 + 搜索过滤
-  const dockShortcuts = ungroupedIds
-    .map((id) => shortcuts.find((s) => s.id === id))
-    .filter((s): s is Shortcut => s !== undefined)
-    .filter((s) => {
-      if (!debouncedQuery.trim()) return true;
-      const q = debouncedQuery.toLowerCase();
-      return s.name.toLowerCase().includes(q) || s.url.toLowerCase().includes(q);
-    });
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    // 找最近的 item 中心点
+    const itemSlot = rect.width / itemCount;
+    const idx = Math.max(0, Math.min(itemCount - 1, Math.floor(x / itemSlot)));
+    setHoverIndex(idx);
+  };
+
+  const handleMouseLeave = () => setHoverIndex(null);
 
   return (
-    <div className="w-full min-h-screen flex flex-col items-center px-8 pt-8">
-      {/* dock 内部嵌入的"搜索框"(为了 dock 模式下搜索框仍可访问)
-          主搜索框在 App.tsx 渲染,这里只是 backup(放在右上角) */}
-      <div className="w-full max-w-3xl relative z-50 mb-6">
-        <DockSearchBar
-          query={searchQuery}
-          onQueryChange={setSearchQuery}
-          onAdd={(data) => onAdd(data)}
-        />
-      </div>
-
-      {/* 中间占位区:让背景成为视觉主体 */}
-      <div className="flex-1" />
-
-      {/* 底部 dock 栏 + 操作按钮 */}
-      <div className="w-full flex items-end justify-between pb-6 px-4 relative z-10">
-        {/* 左下:工具按钮 */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              const name = prompt(t('groups.groupNamePlaceholder') as string);
-              if (name) onAddGroup({ name });
-            }}
-            className="px-3 py-2 rounded-xl bg-white/10 dark:bg-black/20 backdrop-blur-xl
-                       border border-white/20 text-sm text-muted-foreground
-                       hover:text-foreground hover:bg-white/20 transition-colors"
-          >
-            <Plus className="w-4 h-4 inline mr-1" />
-            {t('groups.newGroup')}
-          </button>
-        </div>
-
-        {/* 中下:dock 主体(react-osx-dock) */}
-        <div className="flex-1 flex justify-center">
-          {dockShortcuts.length > 0 ? (
-            /* react-osx-dock:macOS magnification 风格 */
-            <Dock
-              itemWidth={48}
-              magnification={1.6}
-              magnifyDirection="up"
-              className="bg-white/10 dark:bg-black/20 backdrop-blur-xl
-                         border border-white/20 dark:border-black/10
-                         rounded-2xl px-3 py-2 shadow-2xl shadow-black/30"
-              backgroundClassName="bg-transparent"
-            >
-              {dockShortcuts.map((s) => (
-                <DockItem key={s.id} shortcut={s} />
-              ))}
-            </Dock>
-          ) : (
-            <div className="text-sm text-muted-foreground bg-white/5 dark:bg-black/10
-                            backdrop-blur-xl border border-dashed border-white/20
-                            rounded-2xl px-6 py-4">
-              {t('shortcuts.noShortcuts')}
-            </div>
-          )}
-        </div>
-
-        {/* 右下:空(占位) */}
-        <div className="w-24" />
-      </div>
+    <div
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className={cn(
+        'flex items-end gap-2 px-3 py-2',
+        'bg-white/15 dark:bg-black/30 backdrop-blur-2xl',
+        'border border-white/25 dark:border-white/10',
+        'rounded-3xl shadow-2xl shadow-black/25',
+      )}
+    >
+      {Array.isArray(children)
+        ? children.map((child, i) => {
+            // 计算 scale:被 hover 的 index → 1,邻居 ±1 → 0.4~0.5,其他 → 0
+            let scale = 0;
+            if (hoverIndex !== null) {
+              const dist = Math.abs(i - hoverIndex);
+              if (dist === 0) scale = 1;
+              else if (dist === 1) scale = 0.45;
+              else if (dist === 2) scale = 0.15;
+            }
+            // 克隆 child,注入 scale prop
+            const childEl = child as React.ReactElement<{ scale: number }>;
+            return (
+              <div
+                key={(childEl as { key?: string }).key ?? i}
+                className="flex items-end"
+                style={{
+                  // 邻居位置留 padding,让放大后的图标能向上凸出而不被裁
+                  paddingTop: `${ITEM_HOVER_PX - ITEM_BASE_PX}px`,
+                  marginTop: `-${ITEM_HOVER_PX - ITEM_BASE_PX}px`,
+                }}
+              >
+                {React.cloneElement(childEl, { scale })}
+              </div>
+            );
+          })
+        : null}
     </div>
   );
 }
 
-// 简化的搜索框(独立于 SearchBar,避免引入 SearchBar 全部 props)
-import { Input } from '@/src/components/ui/input';
-
-function DockSearchBar({
-  query,
-  onQueryChange,
-  onAdd,
-}: {
-  query: string;
-  onQueryChange: (q: string) => void;
-  onAdd: (data: { name: string; url: string }) => void;
-}) {
+export function DockLayout({
+  shortcuts,
+  ungroupedIds,
+  onAddGroup,
+}: DockLayoutProps) {
   const { t } = useI18n();
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const url = query.trim();
-    if (!url) return;
-    onAdd({ name: url, url });
-  };
+
+  // 列出未分组
+  const dockShortcuts = ungroupedIds
+    .map((id) => shortcuts.find((s) => s.id === id))
+    .filter((s): s is Shortcut => s !== undefined);
+
   return (
-    <form onSubmit={handleSubmit} className="relative">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-      <Input
-        type="text"
-        placeholder={t('search.placeholder')}
-        value={query}
-        onChange={(e) => onQueryChange(e.target.value)}
-        className="pl-9 pr-8 h-9 bg-white/10 dark:bg-black/10 backdrop-blur-xl
-                   border border-white/20 dark:border-black/10"
-      />
-    </form>
+    <div className="w-full h-full flex flex-col items-center justify-center">
+      {/* 中部:背景完全露出,dock 在屏幕中部偏下一点(不贴底,让背景有更多展示空间) */}
+      <div className="flex-1 flex items-center justify-center w-full">
+        {dockShortcuts.length > 0 ? (
+          <Dock>
+            {dockShortcuts.map((s) => (
+              <DockItem key={s.id} shortcut={s} scale={0} />
+            ))}
+          </Dock>
+        ) : (
+          <div
+            className="text-sm text-muted-foreground bg-white/10 dark:bg-black/20
+                       backdrop-blur-2xl border border-dashed border-white/25
+                       rounded-2xl px-6 py-4"
+          >
+            {t('shortcuts.noShortcuts')}
+          </div>
+        )}
+      </div>
+
+      {/* 左下:工具按钮(fixed,不影响中央 dock 居中) */}
+      <button
+        onClick={() => {
+          const name = prompt(t('groups.groupNamePlaceholder') as string);
+          if (name) onAddGroup({ name });
+        }}
+        className="fixed bottom-6 left-6 z-10 px-3 py-2 rounded-xl
+                   bg-white/15 dark:bg-black/30 backdrop-blur-2xl
+                   border border-white/25 dark:border-white/10
+                   text-sm text-muted-foreground
+                   hover:text-foreground hover:bg-white/25
+                   transition-colors flex items-center gap-1 shadow-lg"
+      >
+        <Plus className="w-4 h-4" />
+        {t('groups.newGroup')}
+      </button>
+    </div>
   );
 }
