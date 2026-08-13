@@ -38,7 +38,7 @@ function App() {
     groups,
     addGroup,
     updateGroup,
-    removeGroup,
+    removeGroup: rawRemoveGroup,
     toggleGroupExpand,
     addShortcutToGroup,
     moveShortcutsToGroup,
@@ -138,6 +138,15 @@ function App() {
     window.open(engineOption.url + encodeURIComponent(q.trim()), '_blank');
     notifyNewtabNavigated();
   }, [engineOption]);
+
+  // 拦截:系统 dock 分组不能被删(dock 布局依赖它)
+  const removeGroup = useCallback(
+    (id: string) => {
+      if (id === DOCK_GROUP_ID) return;
+      return rawRemoveGroup(id);
+    },
+    [rawRemoveGroup]
+  );
 
   // 跳转重置
   useEffect(() => {
