@@ -78,8 +78,10 @@ export async function initGroupsStore(): Promise<void> {
     const raw = await cell.read();
     let list = safeRead(v.array(groupSchema), raw, DEFAULT_GROUPS);
     // 确保系统 dock 分组存在(dock 布局用它存书签,group 布局过滤掉不渲染)
+    // 注意:updatedAt 必须用 0(占位符),不能 Date.now()。
+    // 否则新设备 init 后本地空 dock 组会比云端"新",pullAndMerge 的 last-write-wins
+    // 会判本地胜,丢掉云端 dock 书签,甚至后续上传把云端 dock 整体清空(数据丢失)。
     if (!list.some((g) => g.id === DOCK_GROUP_ID)) {
-      const now = Date.now();
       list = [
         ...list,
         {
@@ -88,8 +90,8 @@ export async function initGroupsStore(): Promise<void> {
           color: 'blue',
           shortcutIds: [],
           isExpanded: true,
-          createdAt: now,
-          updatedAt: now,
+          createdAt: 0,
+          updatedAt: 0,
         },
       ];
       // 持久化新分组(必须 silent,这是初始化,不算用户 dirty)
