@@ -7,7 +7,6 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
 import type { Shortcut, ShortcutGroup } from '@/src/utils/types';
 import { notifyNewtabNavigated } from '@/src/utils/navigationReset';
 import { cn } from '@/src/lib/utils';
@@ -203,23 +202,6 @@ export function DockLayout({
           )}
         </div>
       </div>
-
-      {/* 左下:工具按钮(fixed,不影响 dock 居中) */}
-      <button
-        onClick={() => {
-          const name = prompt(t('groups.groupNamePlaceholder') as string);
-          if (name) onAddGroup({ name });
-        }}
-        className="fixed bottom-6 left-6 z-20 px-3 py-2 rounded-xl
-                   bg-white/15 dark:bg-black/30 backdrop-blur-2xl
-                   border border-white/25 dark:border-white/10
-                   text-sm text-muted-foreground
-                   hover:text-foreground hover:bg-white/25
-                   transition-colors flex items-center gap-1 shadow-lg"
-      >
-        <Plus className="w-4 h-4" />
-        {t('groups.newGroup')}
-      </button>
     </>
   );
 }
