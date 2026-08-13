@@ -548,7 +548,11 @@ export function SettingsSheet({
                 {videoFileName && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
                     <Video className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate flex-1" title={videoFileName}>{videoFileName}</span>
+                    {/*
+                     * 注意:flex 容器里的 span 必须加 min-w-0,truncate 才会生效。
+                     * 默认 min-width: auto 让 span 不收缩,长文件名直接撑出父容器。
+                     */}
+                    <span className="truncate min-w-0 flex-1" title={videoFileName}>{videoFileName}</span>
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
