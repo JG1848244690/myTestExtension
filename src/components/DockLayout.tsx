@@ -182,24 +182,26 @@ export function DockLayout({
     .filter((s): s is Shortcut => s !== undefined);
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center">
-      {/* 中部:背景完全露出,dock 在屏幕中部偏下一点(不贴底,让背景有更多展示空间) */}
-      <div className="flex-1 flex items-center justify-center w-full">
-        {dockShortcuts.length > 0 ? (
-          <Dock>
-            {dockShortcuts.map((s) => (
-              <DockItem key={s.id} shortcut={s} scale={0} />
-            ))}
-          </Dock>
-        ) : (
-          <div
-            className="text-sm text-muted-foreground bg-white/10 dark:bg-black/20
-                       backdrop-blur-2xl border border-dashed border-white/25
-                       rounded-2xl px-6 py-4"
-          >
-            {t('shortcuts.noShortcuts')}
-          </div>
-        )}
+    <>
+      {/* dock 主体:绝对居中,独立于父级 flex 链,不受搜索框 hide 影响 */}
+      <div className="fixed inset-0 z-10 flex items-center justify-center pointer-events-none">
+        <div className="pointer-events-auto">
+          {dockShortcuts.length > 0 ? (
+            <Dock>
+              {dockShortcuts.map((s) => (
+                <DockItem key={s.id} shortcut={s} scale={0} />
+              ))}
+            </Dock>
+          ) : (
+            <div
+              className="text-sm text-muted-foreground bg-white/10 dark:bg-black/20
+                         backdrop-blur-2xl border border-dashed border-white/25
+                         rounded-2xl px-6 py-4"
+            >
+              {t('shortcuts.noShortcuts')}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 左下:工具按钮(fixed,不影响中央 dock 居中) */}
@@ -208,7 +210,7 @@ export function DockLayout({
           const name = prompt(t('groups.groupNamePlaceholder') as string);
           if (name) onAddGroup({ name });
         }}
-        className="fixed bottom-6 left-6 z-10 px-3 py-2 rounded-xl
+        className="fixed bottom-6 left-6 z-20 px-3 py-2 rounded-xl
                    bg-white/15 dark:bg-black/30 backdrop-blur-2xl
                    border border-white/25 dark:border-white/10
                    text-sm text-muted-foreground
@@ -218,6 +220,6 @@ export function DockLayout({
         <Plus className="w-4 h-4" />
         {t('groups.newGroup')}
       </button>
-    </div>
+    </>
   );
 }
