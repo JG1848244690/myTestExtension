@@ -91,7 +91,11 @@ export const en: TranslationTree = {
     addShortcut: 'Add shortcut',
     migrateTitle: 'Move to group',
     migrateDesc: 'Pick a destination group for {n} shortcuts',
+    copyTitle: 'Copy to group',
+    copyDesc: 'Pick a destination group for {n} shortcuts (the source group keeps them)',
     noMigrateTarget: 'No other groups available',
+    modeMove: 'Move',
+    modeCopy: 'Copy',
   },
 
   layout: {

@@ -93,6 +93,24 @@ export function moveShortcuts(
   });
 }
 
+/**
+ * 复制一批 shortcut 到 target(保留 source 不变)
+ * target=null 表示「未分组」
+ * 已存在的 id 自动去重
+ */
+export function copyShortcuts(
+  list: readonly ShortcutGroup[],
+  shortcutIds: readonly string[],
+  targetId: string | null
+): ShortcutGroup[] {
+  const now = Date.now();
+  return list.map((g) => {
+    if (g.id !== targetId) return g;
+    const merged = [...new Set([...g.shortcutIds, ...shortcutIds])];
+    return { ...g, shortcutIds: merged, updatedAt: now };
+  });
+}
+
 export function reorderGroups(
   list: readonly ShortcutGroup[],
   activeId: string,

@@ -91,7 +91,11 @@ export const zh_CN: TranslationTree = {
     addShortcut: '添加快捷方式',
     migrateTitle: '迁移到分组',
     migrateDesc: '选择目标分组,将 {n} 个快捷方式迁移过去',
+    copyTitle: '复制到分组',
+    copyDesc: '选择目标分组,将 {n} 个快捷方式复制过去(原分组保留)',
     noMigrateTarget: '没有可迁移的目标分组',
+    modeMove: '迁移',
+    modeCopy: '复制',
   },
 
   layout: {

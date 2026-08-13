@@ -46,6 +46,7 @@ function App() {
     importGroups,
     reorderGroups,
     reorderShortcutsInGroup,
+    copyShortcutsToGroup,
   } = useGroupsStore();
   const { engine, engineOption, engineOptions, setEngine, setBackground, layout } = useSettingsStore();
   const background = useStoreState(settingsStore, (s) => s.background);
@@ -304,6 +305,7 @@ function App() {
               onRemoveShortcut={removeShortcut}
               onBatchRemoveShortcuts={removeShortcuts}
               onMoveShortcutsToGroup={moveShortcutsToGroup}
+              onCopyShortcutsToGroup={copyShortcutsToGroup}
               onImportData={handleImportData}
               onReorderGroups={reorderGroups}
               onReorderShortcutsInGroup={reorderShortcutsInGroup}

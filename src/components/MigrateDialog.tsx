@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,12 +11,16 @@ import type { ShortcutGroup } from '@/src/utils/types';
 import { cn } from '@/src/lib/utils';
 import { useI18n } from '@/src/i18n';
 
+/** 模式:迁移(source 移除)/ 复制(source 保留) */
+type Mode = 'move' | 'copy';
+
 interface MigrateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   groups: ShortcutGroup[];
   currentGroupId: string | null; // null 表示当前在"未分组"
   onMigrate: (targetGroupId: string | null) => void;
+  onCopy?: (targetGroupId: string | null) => void;
   selectedCount: number;
 }
 
@@ -25,15 +30,24 @@ export function MigrateDialog({
   groups,
   currentGroupId,
   onMigrate,
+  onCopy,
   selectedCount,
 }: MigrateDialogProps) {
   const { t } = useI18n();
+  // 复制模式可选 — 没传 onCopy 时回退到迁移模式
+  const canCopy = !!onCopy;
+  const [mode, setMode] = useState<Mode>('move');
+
   const handleSelect = (targetGroupId: string | null) => {
-    onMigrate(targetGroupId);
+    if (mode === 'copy' && onCopy) {
+      onCopy(targetGroupId);
+    } else {
+      onMigrate(targetGroupId);
+    }
     onOpenChange(false);
   };
 
-  // 过滤掉当前分组
+  // 过滤掉当前分组(自己不能迁/复制到自己)
   const availableGroups = groups.filter(g => g.id !== currentGroupId);
 
   const groupColorMap: Record<string, string> = {
@@ -45,15 +59,49 @@ export function MigrateDialog({
     cyan: 'bg-cyan-500',
   };
 
+  const title = mode === 'copy' ? t('groups.copyTitle') : t('groups.migrateTitle');
+  const desc = mode === 'copy'
+    ? t('groups.copyDesc', { n: selectedCount })
+    : t('groups.migrateDesc', { n: selectedCount });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[360px]">
         <DialogHeader>
-          <DialogTitle>{t('groups.migrateTitle')}</DialogTitle>
-          <DialogDescription>
-            {t('groups.migrateDesc', { n: selectedCount })}
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{desc}</DialogDescription>
         </DialogHeader>
+
+        {/* 模式 tab(只在允许复制时显示) */}
+        {canCopy && (
+          <div className="grid grid-cols-2 gap-1 p-1 bg-muted/50 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setMode('move')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                mode === 'move'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {t('groups.modeMove')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('copy')}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                mode === 'copy'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {t('groups.modeCopy')}
+            </button>
+          </div>
+        )}
+
         <div className="max-h-[300px] overflow-y-auto overflow-x-hidden mt-2">
           <div className="space-y-1">
             {/* 未分组选项 - 仅当不在未分组时显示 */}

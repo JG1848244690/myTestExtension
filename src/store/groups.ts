@@ -15,6 +15,7 @@ import {
   addShortcutToGroup,
   removeShortcutFromGroup,
   moveShortcuts,
+  copyShortcuts,
   reorderGroups,
   reorderShortcutsInGroup,
 } from '@/src/services/groups';
@@ -147,6 +148,13 @@ export const groupsActions = {
 
   move(shortcutIds: string[], sourceId: string | null, targetId: string | null) {
     const list = moveShortcuts(groupsStore.get().list, shortcutIds, sourceId, targetId);
+    groupsStore.set({ list });
+    scheduleWrite(list);
+  },
+
+  /** 复制 shortcut:source 保留,target 增加 ids(自动去重) */
+  copy(shortcutIds: string[], targetId: string | null) {
+    const list = copyShortcuts(groupsStore.get().list, shortcutIds, targetId);
     groupsStore.set({ list });
     scheduleWrite(list);
   },

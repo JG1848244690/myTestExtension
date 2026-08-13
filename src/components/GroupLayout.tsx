@@ -53,6 +53,7 @@ interface GroupLayoutProps {
   onRemoveShortcut: (id: string) => void;
   onBatchRemoveShortcuts?: (ids: string[]) => void;
   onMoveShortcutsToGroup?: (sourceGroupId: string | null, targetGroupId: string | null, shortcutIds: string[]) => void;
+  onCopyShortcutsToGroup?: (targetGroupId: string | null, shortcutIds: string[]) => void;
   onImportData?: (shortcuts: Shortcut[], groups: ShortcutGroup[]) => void;
   onReorderGroups?: (activeId: string, overId: string) => void;
   onReorderShortcutsInGroup?: (groupId: string, activeId: string, overId: string) => void;
@@ -72,6 +73,7 @@ interface SortableGroupCardProps {
   onRemoveShortcut: (id: string) => void;
   onBatchRemoveShortcuts?: (ids: string[]) => void;
   onMigrateShortcuts?: (targetGroupId: string | null, shortcutIds: string[]) => void;
+  onCopyShortcuts?: (targetGroupId: string | null, shortcutIds: string[]) => void;
   onReorderShortcutsInGroup?: (groupId: string, activeId: string, overId: string) => void;
 }
 
@@ -87,6 +89,7 @@ function SortableGroupCard({
   onRemoveShortcut,
   onBatchRemoveShortcuts,
   onMigrateShortcuts,
+  onCopyShortcuts,
   onReorderShortcutsInGroup,
 }: SortableGroupCardProps) {
   const {
@@ -117,6 +120,7 @@ function SortableGroupCard({
         onRemoveShortcut={onRemoveShortcut}
         onBatchRemoveShortcuts={onBatchRemoveShortcuts}
         onMigrateShortcuts={onMigrateShortcuts}
+        onCopyShortcuts={onCopyShortcuts}
         onReorderShortcutsInGroup={onReorderShortcutsInGroup}
         dragHandleProps={{ ...attributes, ...listeners }}
         isDragging={isDragging}
@@ -140,6 +144,7 @@ export function GroupLayout({
   onRemoveShortcut,
   onBatchRemoveShortcuts,
   onMoveShortcutsToGroup,
+  onCopyShortcutsToGroup,
   onImportData,
   onReorderGroups,
   onReorderShortcutsInGroup,
@@ -347,6 +352,13 @@ export function GroupLayout({
   const handleUngroupedMigrate = (targetGroupId: string | null) => {
     if (ungroupedSelectedIds.size === 0 || !onMoveShortcutsToGroup) return;
     onMoveShortcutsToGroup(null, targetGroupId, Array.from(ungroupedSelectedIds));
+    setUngroupedSelectedIds(new Set());
+    setIsUngroupedSelectMode(false);
+  };
+
+  const handleUngroupedCopy = (targetGroupId: string | null) => {
+    if (ungroupedSelectedIds.size === 0 || !onCopyShortcutsToGroup) return;
+    onCopyShortcutsToGroup(targetGroupId, Array.from(ungroupedSelectedIds));
     setUngroupedSelectedIds(new Set());
     setIsUngroupedSelectMode(false);
   };
@@ -569,6 +581,9 @@ export function GroupLayout({
                 onMigrateShortcuts={(targetGroupId, shortcutIds) => {
                   onMoveShortcutsToGroup?.(group.id, targetGroupId, shortcutIds);
                 }}
+                onCopyShortcuts={(targetGroupId, shortcutIds) => {
+                  onCopyShortcutsToGroup?.(targetGroupId, shortcutIds);
+                }}
                 onReorderShortcutsInGroup={onReorderShortcutsInGroup}
               />
             ))}
@@ -738,6 +753,7 @@ export function GroupLayout({
         groups={groups}
         currentGroupId={null}
         onMigrate={handleUngroupedMigrate}
+        onCopy={handleUngroupedCopy}
         selectedCount={ungroupedSelectedIds.size}
       />
     </div>

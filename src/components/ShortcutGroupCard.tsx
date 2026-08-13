@@ -115,6 +115,7 @@ interface ShortcutGroupCardProps {
   onRemoveShortcut: (id: string) => void;
   onBatchRemoveShortcuts?: (ids: string[]) => void;
   onMigrateShortcuts?: (targetGroupId: string | null, shortcutIds: string[]) => void;
+  onCopyShortcuts?: (targetGroupId: string | null, shortcutIds: string[]) => void;
   onReorderShortcutsInGroup?: (groupId: string, activeId: string, overId: string) => void;
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>; // 拖拽手柄 props（用于分组拖拽）
   isDragging?: boolean; // 分组是否被拖拽
@@ -132,6 +133,7 @@ export function ShortcutGroupCard({
   onRemoveShortcut,
   onBatchRemoveShortcuts,
   onMigrateShortcuts,
+  onCopyShortcuts,
   onReorderShortcutsInGroup,
   dragHandleProps,
   isDragging,
@@ -237,6 +239,13 @@ export function ShortcutGroupCard({
   const handleMigrate = (targetGroupId: string | null) => {
     if (selectedIds.size === 0 || !onMigrateShortcuts) return;
     onMigrateShortcuts(targetGroupId, Array.from(selectedIds));
+    setSelectedIds(new Set());
+    setIsSelectMode(false);
+  };
+
+  const handleCopy = (targetGroupId: string | null) => {
+    if (selectedIds.size === 0 || !onCopyShortcuts) return;
+    onCopyShortcuts(targetGroupId, Array.from(selectedIds));
     setSelectedIds(new Set());
     setIsSelectMode(false);
   };
@@ -436,6 +445,7 @@ export function ShortcutGroupCard({
         groups={allGroups}
         currentGroupId={group.id}
         onMigrate={handleMigrate}
+        onCopy={handleCopy}
         selectedCount={selectedIds.size}
       />
     </div>

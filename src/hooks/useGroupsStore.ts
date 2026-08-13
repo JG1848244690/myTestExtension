@@ -55,6 +55,12 @@ export function useGroupsStore() {
       targetGroupId: string | null,
       shortcutIds: string[]
     ) => ok(groupsActions.move(shortcutIds, sourceGroupId, targetGroupId)),
+    /**
+     * 复制到 target(source 保留)
+     * 用法:onCopyShortcutsToGroup(group.id, shortcutIds)
+     */
+    copyShortcutsToGroup: (targetGroupId: string | null, shortcutIds: string[]) =>
+      ok(groupsActions.copy(shortcutIds, targetGroupId)),
     importGroups: (next: ShortcutGroup[]) => ok(groupsActions.replace(next)),
     reorderGroups: (activeId: string, overId: string) => ok(groupsActions.reorder(activeId, overId)),
     reorderShortcutsInGroup: (groupId: string, activeId: string, overId: string) =>
