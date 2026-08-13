@@ -4,6 +4,7 @@ import {
   loadBackgroundVideo,
   type StoredVideo,
 } from '@/src/utils/videoStorage';
+import { DockLayout } from '@/src/components/DockLayout';
 import { SearchBar } from '@/src/components/SearchBar';
 import { GroupLayout } from '@/src/components/GroupLayout';
 import { SettingsSheet } from '@/src/components/SettingsSheet';
@@ -44,7 +45,7 @@ function App() {
     reorderGroups,
     reorderShortcutsInGroup,
   } = useGroupsStore();
-  const { engine, engineOption, engineOptions, setEngine, setBackground } = useSettingsStore();
+  const { engine, engineOption, engineOptions, setEngine, setBackground, layout } = useSettingsStore();
   const background = useStoreState(settingsStore, (s) => s.background);
 
   const { mounted } = useTheme();
@@ -247,9 +248,24 @@ function App() {
           </div>
 
           <div className="w-full max-w-4xl flex-1 mt-16">
-            <GroupLayout
-              key={'groups-' + resetNonce}
-              groups={groups}
+            {layout === 'dock' ? (
+              <DockLayout
+                key={'dock-' + resetNonce}
+                shortcuts={shortcuts}
+                groups={groups}
+                ungroupedIds={getUngroupedShortcutIds(shortcuts.map((s) => s.id))}
+                onAdd={addShortcut}
+                onUpdate={updateShortcut}
+                onRemove={removeShortcut}
+                onBatchRemove={removeShortcuts}
+                onMoveShortcutsToGroup={moveShortcutsToGroup}
+                onAddGroup={addGroup}
+                onImportData={handleImportData}
+              />
+            ) : (
+              <GroupLayout
+                key={'groups-' + resetNonce}
+                groups={groups}
               shortcuts={shortcuts}
               bookmarksDirty={bookmarksDirty}
               onToggleGroupExpand={toggleGroupExpand}
@@ -268,6 +284,7 @@ function App() {
               onReorderShortcutsInGroup={reorderShortcutsInGroup}
               getUngroupedShortcutIds={getUngroupedShortcutIds}
             />
+            )}
           </div>
         </div>
 

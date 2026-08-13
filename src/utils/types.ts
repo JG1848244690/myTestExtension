@@ -57,7 +57,10 @@ export interface SyncResult {
 }
 
 // 布局类型
-export type LayoutType = 'grid' | 'group';
+// - grid: 简单平铺网格(暂未用,留作 ShortcutGrid 模式)
+// - group: 当前的分组卡片列表(默认)
+// - dock: 底部 macOS 风格 dock 栏,中间留出搜索框
+export type LayoutType = 'grid' | 'group' | 'dock';
 
 // 搜索引擎
 export type SearchEngineType = 'google' | 'bing' | 'baidu';

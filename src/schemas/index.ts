@@ -12,7 +12,7 @@ import type { Shortcut, ShortcutGroup, TabSession, TabInfo, Settings, Background
 import { SUPPORTED_LOCALES } from '@/src/i18n';
 
 const STORAGE_KEYS = ['google', 'bing', 'baidu'] as const;
-const LAYOUTS = ['grid', 'group'] as const;
+const LAYOUTS = ['grid', 'group', 'dock'] as const;
 const BG_TYPES = ['none', 'color', 'image', 'video'] as const;
 const BG_SIZES = ['cover', 'contain', 'auto', '100% 100%'] as const;
 

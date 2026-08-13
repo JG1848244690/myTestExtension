@@ -23,7 +23,7 @@ import {
   DEFAULT_BACKGROUND_COLOR,
 } from '@/src/utils/constants';
 import type { BackgroundSetting, BackgroundType, BackgroundSize } from '@/src/utils/types';
-import { Image, Palette, Maximize2, RotateCcw, Upload, Globe, Video, Volume2, VolumeX, Trash2 } from 'lucide-react';
+import { Image, Palette, Maximize2, RotateCcw, Upload, Globe, Video, Volume2, VolumeX, Trash2, LayoutGrid, Dock } from 'lucide-react';
 import { useI18n, SUPPORTED_LOCALES, type Locale } from '@/src/i18n';
 import { useSettingsStore } from '@/src/hooks/useSettingsStore';
 import {
@@ -67,7 +67,7 @@ export function SettingsSheet({
   onSave,
 }: SettingsSheetProps) {
   const { t, locale } = useI18n();
-  const { settings, setLanguage } = useSettingsStore();
+  const { settings, setLanguage, layout: currentLayout, setLayout } = useSettingsStore();
 
   const [type, setType] = useState<BackgroundType>(setting.type || 'none');
   const [color, setColor] = useState(setting.color || DEFAULT_BACKGROUND_COLOR);
@@ -279,6 +279,31 @@ export function SettingsSheet({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* 布局选择 */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">{t('settings.layout.label')}</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant={currentLayout === 'group' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setLayout('group')}
+                className="gap-1.5"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                {t('settings.layout.group')}
+              </Button>
+              <Button
+                variant={currentLayout === 'dock' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setLayout('dock')}
+                className="gap-1.5"
+              >
+                <Dock className="w-3.5 h-3.5" />
+                {t('settings.layout.dock')}
+              </Button>
+            </div>
           </div>
 
           {/* 背景类型选择 */}

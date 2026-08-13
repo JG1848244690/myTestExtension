@@ -103,6 +103,11 @@ export const en: TranslationTree = {
 
   settings: {
     title: 'Settings',
+    layout: {
+      label: 'Layout',
+      group: 'Group',
+      dock: 'Bottom dock',
+    },
     language: 'Language',
     languageOptions: {
       zh_CN: '简体中文',
