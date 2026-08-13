@@ -13,7 +13,7 @@ import { SUPPORTED_LOCALES } from '@/src/i18n';
 
 const STORAGE_KEYS = ['google', 'bing', 'baidu'] as const;
 const LAYOUTS = ['grid', 'group'] as const;
-const BG_TYPES = ['none', 'color', 'image'] as const;
+const BG_TYPES = ['none', 'color', 'image', 'video'] as const;
 const BG_SIZES = ['cover', 'contain', 'auto', '100% 100%'] as const;
 
 export const shortcutSchema = v.object({
@@ -56,6 +56,9 @@ const backgroundSchema = v.object({
   imageUrl: v.optional(v.string()),
   size: v.optional(v.oneOf(BG_SIZES)),
   opacity: v.optional(v.number()),
+  // 视频背景:实际 blob 存在 IndexedDB,这里只存 meta
+  videoFileName: v.optional(v.string()),
+  muted: v.optional(v.boolean()),
 });
 
 export const settingsSchema = v.object({

@@ -8,6 +8,7 @@ import {
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Label } from '@/src/components/ui/label';
+import { Checkbox } from '@/src/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -22,9 +23,16 @@ import {
   DEFAULT_BACKGROUND_COLOR,
 } from '@/src/utils/constants';
 import type { BackgroundSetting, BackgroundType, BackgroundSize } from '@/src/utils/types';
-import { Image, Palette, Maximize2, RotateCcw, Upload, Globe } from 'lucide-react';
+import { Image, Palette, Maximize2, RotateCcw, Upload, Globe, Video, Volume2, VolumeX, Trash2 } from 'lucide-react';
 import { useI18n, SUPPORTED_LOCALES, type Locale } from '@/src/i18n';
 import { useSettingsStore } from '@/src/hooks/useSettingsStore';
+import {
+  saveBackgroundVideo,
+  clearBackgroundVideo,
+} from '@/src/utils/videoStorage';
+
+// 视频背景大小上限(50MB),IndexedDB 理论无上限但防止 OOM
+const VIDEO_MAX_SIZE_MB = 50;
 
 interface SettingsSheetProps {
   open: boolean;
@@ -69,7 +77,10 @@ export function SettingsSheet({
   const [imageUrl, setImageUrl] = useState(setting.imageUrl || '');
   const [size, setSize] = useState<BackgroundSize>(setting.size || 'cover');
   const [opacity, setOpacity] = useState(setting.opacity ?? 1);
+  const [muted, setMuted] = useState(setting.muted ?? true);
+  const [videoFileName, setVideoFileName] = useState(setting.videoFileName || '');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   // 当弹窗打开时，同步最新设置
   useEffect(() => {
@@ -79,6 +90,8 @@ export function SettingsSheet({
       setImageUrl(setting.imageUrl || '');
       setSize(setting.size || 'cover');
       setOpacity(setting.opacity ?? 1);
+      setMuted(setting.muted ?? true);
+      setVideoFileName(setting.videoFileName || '');
     }
   }, [open, setting]);
 
@@ -94,6 +107,7 @@ export function SettingsSheet({
       type: newType,
       ...(newType === 'color' && { color }),
       ...(newType === 'image' && { imageUrl, size, opacity }),
+      ...(newType === 'video' && { videoFileName, muted, size, opacity }),
     };
     saveSetting(newSetting);
   };
@@ -152,6 +166,9 @@ export function SettingsSheet({
     if (type === 'image' && imageUrl) {
       saveSetting({ type: 'image', imageUrl, size: newSize, opacity });
     }
+    if (type === 'video') {
+      saveSetting({ type: 'video', videoFileName, muted, size: newSize, opacity });
+    }
   };
 
   // 透明度变化时即时保存
@@ -159,6 +176,9 @@ export function SettingsSheet({
     setOpacity(newOpacity);
     if (type === 'image' && imageUrl) {
       saveSetting({ type: 'image', imageUrl, size, opacity: newOpacity });
+    }
+    if (type === 'video') {
+      saveSetting({ type: 'video', videoFileName, muted, size, opacity: newOpacity });
     }
   };
 
@@ -169,8 +189,63 @@ export function SettingsSheet({
     setImageUrl('');
     setSize('cover');
     setOpacity(1);
+    setMuted(true);
+    setVideoFileName('');
+    void clearBackgroundVideo().catch(() => {});
     saveSetting({ type: 'none' });
     onOpenChange(false);
+  };
+
+  // 视频文件上传
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // 仅接受 mp4 / webm(简化版:只判断 mime + 扩展名)
+    const ok =
+      file.type.startsWith('video/mp4') ||
+      file.type.startsWith('video/webm') ||
+      file.name.toLowerCase().endsWith('.mp4') ||
+      file.name.toLowerCase().endsWith('.webm');
+    if (!ok) {
+      alert(t('settings.bg.videoInvalidType'));
+      return;
+    }
+    if (file.size > VIDEO_MAX_SIZE_MB * 1024 * 1024) {
+      alert(t('settings.bg.videoTooLarge', { mb: VIDEO_MAX_SIZE_MB }));
+      return;
+    }
+    try {
+      await saveBackgroundVideo(file, file.name);
+      setVideoFileName(file.name);
+      setType('video');
+      saveSetting({
+        type: 'video',
+        videoFileName: file.name,
+        muted,
+        size,
+        opacity,
+      });
+    } catch (err) {
+      console.error('[bg] save video failed:', err);
+      alert(t('settings.bg.videoSaveFailed'));
+    }
+    if (videoInputRef.current) videoInputRef.current.value = '';
+  };
+
+  // 删除当前视频
+  const handleVideoRemove = async () => {
+    await clearBackgroundVideo().catch(() => {});
+    setVideoFileName('');
+    saveSetting({ type: 'none' });
+    setType('none');
+  };
+
+  // 静音切换
+  const handleMutedChange = (newMuted: boolean) => {
+    setMuted(newMuted);
+    if (type === 'video') {
+      saveSetting({ type: 'video', videoFileName, muted: newMuted, size, opacity });
+    }
   };
 
   return (
@@ -242,6 +317,15 @@ export function SettingsSheet({
               >
                 <Image className="w-3.5 h-3.5" />
                 {t('settings.bg.type.image')}
+              </Button>
+              <Button
+                variant={type === 'video' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleTypeChange('video')}
+                className="flex-1 gap-1.5"
+              >
+                <Video className="w-3.5 h-3.5" />
+                {t('settings.bg.type.video')}
               </Button>
             </div>
           </div>
@@ -414,6 +498,111 @@ export function SettingsSheet({
               </div>
 
               {/* 透明度 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  {t('settings.bg.opacityPercent', { p: Math.round(opacity * 100) })}
+                </Label>
+                <Input
+                  type="range"
+                  min="0.1"
+                  max="1"
+                  step="0.1"
+                  value={opacity}
+                  onChange={(e) => handleOpacityChange(parseFloat(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 视频背景设置 */}
+          {type === 'video' && (
+            <div className="space-y-5">
+              {/* 选择视频文件 */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{t('settings.bg.videoFile')}</Label>
+                <div className="flex gap-2">
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/mp4,video/webm,.mp4,.webm"
+                    onChange={handleVideoUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-2"
+                    onClick={() => videoInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4" />
+                    {videoFileName
+                      ? t('settings.bg.videoReplace')
+                      : t('settings.bg.videoUpload')}
+                  </Button>
+                  {videoFileName && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleVideoRemove}
+                      title={t('settings.bg.videoRemove')}
+                      className="text-destructive hover:text-destructive px-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+                {videoFileName && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
+                    <Video className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate flex-1" title={videoFileName}>{videoFileName}</span>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {t('settings.bg.videoHint', { mb: VIDEO_MAX_SIZE_MB })}
+                </p>
+              </div>
+
+              {/* 静音开关 */}
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium flex items-center gap-1.5">
+                  {muted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                  {t('settings.bg.videoMuted')}
+                </Label>
+                <Checkbox
+                  checked={muted}
+                  onCheckedChange={(v) => handleMutedChange(v === true)}
+                />
+              </div>
+
+              {/* 适配方式 + 透明度 复用 image 的 state + Select */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-1.5">
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  {t('settings.bg.size')}
+                </Label>
+                <Select value={size} onValueChange={(v) => handleSizeChange(v as BackgroundSize)}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SIZE_OPTIONS.map((opt) => {
+                      const SIZE_KEY = {
+                        cover: 'cover',
+                        contain: 'contain',
+                        auto: 'auto',
+                        '100% 100%': 'stretch',
+                      } as const;
+                      return (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {t(`settings.bg.sizeOptions.${SIZE_KEY[opt.value]}`)}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
                   {t('settings.bg.opacityPercent', { p: Math.round(opacity * 100) })}

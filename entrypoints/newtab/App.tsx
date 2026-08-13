@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Settings } from 'lucide-react';
+import {
+  loadBackgroundVideo,
+  type StoredVideo,
+} from '@/src/utils/videoStorage';
 import { SearchBar } from '@/src/components/SearchBar';
 import { GroupLayout } from '@/src/components/GroupLayout';
 import { SettingsSheet } from '@/src/components/SettingsSheet';
@@ -47,6 +51,28 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [resetNonce, setResetNonce] = useState(0);
   const bookmarksDirty = useDirty('bookmarks');
+
+  // 视频背景:从 IndexedDB 加载 blob → createObjectURL,卸载时 revoke
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (background?.type !== 'video') {
+      setVideoUrl(null);
+      return;
+    }
+    let revoked = false;
+    let blobUrl: string | null = null;
+    loadBackgroundVideo()
+      .then((stored: StoredVideo | null) => {
+        if (revoked || !stored) return;
+        blobUrl = URL.createObjectURL(stored.blob);
+        setVideoUrl(blobUrl);
+      })
+      .catch((e) => console.error('[bg] load video failed:', e));
+    return () => {
+      revoked = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+  }, [background?.type, background?.videoFileName]);
 
   const handleSearch = useCallback((q: string) => {
     if (!q.trim()) return;
@@ -108,16 +134,33 @@ function App() {
         backgroundRepeat: 'no-repeat',
       };
     }
+    // video 类型由 <video> 元素自己渲染,这里返回空 style
     return {};
   };
 
   const getOverlayStyle = (): React.CSSProperties => {
-    if (!background || background.type !== 'image' || background.opacity === undefined) return {};
+    // video 类型用 video 元素自身的 opacity,不再加遮罩
+    if (!background || background.type === 'video') return {};
+    if (background.type !== 'image' || background.opacity === undefined) return {};
     return { backgroundColor: 'rgba(0, 0, 0, ' + (1 - background.opacity) + ')' };
   };
 
   return (
     <div className="min-h-screen relative" style={getBackgroundStyle()}>
+      {/* 视频背景层(fixed 全屏铺底,opacity 由 setting.opacity 控制) */}
+      {background?.type === 'video' && videoUrl && (
+        <video
+          key={videoUrl}
+          autoPlay
+          loop
+          muted={background.muted ?? true}
+          playsInline
+          className="fixed inset-0 w-full h-full object-cover z-0"
+          style={{ opacity: background.opacity ?? 1 }}
+        >
+          <source src={videoUrl} type="video/mp4" />
+        </video>
+      )}
       {background?.type === 'image' && background.imageUrl && (
         <div className="fixed inset-0 z-0" style={getOverlayStyle()} />
       )}

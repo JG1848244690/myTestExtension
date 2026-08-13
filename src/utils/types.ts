@@ -73,15 +73,18 @@ export interface SearchEngineOption {
 export type BackgroundSize = 'cover' | 'contain' | 'auto' | '100% 100%';
 
 // 背景类型
-export type BackgroundType = 'none' | 'color' | 'image';
+export type BackgroundType = 'none' | 'color' | 'image' | 'video';
 
 // 背景设置
 export interface BackgroundSetting {
-  type: BackgroundType; // 'none' | 'color' | 'image'
+  type: BackgroundType; // 'none' | 'color' | 'image' | 'video'
   color?: string; // 背景色，如 '#1a1a2e'
   imageUrl?: string; // 背景图 URL
   size?: BackgroundSize; // 适配方式
   opacity?: number; // 透明度 0-1
+  // 视频背景:fileName / muted / size 仅作显示/控制用,实际 blob 在 IndexedDB
+  videoFileName?: string;
+  muted?: boolean;
 }
 
 // 设置
