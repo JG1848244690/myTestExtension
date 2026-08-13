@@ -31,9 +31,6 @@ import {
   clearBackgroundVideo,
 } from '@/src/utils/videoStorage';
 
-// 视频背景大小上限(50MB),IndexedDB 理论无上限但防止 OOM
-const VIDEO_MAX_SIZE_MB = 50;
-
 interface SettingsSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -196,7 +193,7 @@ export function SettingsSheet({
     onOpenChange(false);
   };
 
-  // 视频文件上传
+  // 视频文件上传(本地用户自选的文件,无大小限制,只校验类型)
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -208,10 +205,6 @@ export function SettingsSheet({
       file.name.toLowerCase().endsWith('.webm');
     if (!ok) {
       alert(t('settings.bg.videoInvalidType'));
-      return;
-    }
-    if (file.size > VIDEO_MAX_SIZE_MB * 1024 * 1024) {
-      alert(t('settings.bg.videoTooLarge', { mb: VIDEO_MAX_SIZE_MB }));
       return;
     }
     try {
@@ -559,7 +552,7 @@ export function SettingsSheet({
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  {t('settings.bg.videoHint', { mb: VIDEO_MAX_SIZE_MB })}
+                  {t('settings.bg.videoHint')}
                 </p>
               </div>
 

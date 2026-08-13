@@ -138,9 +138,8 @@ export const en: TranslationTree = {
       videoReplace: 'Replace video',
       videoRemove: 'Remove video',
       videoMuted: 'Mute audio',
-      videoHint: 'Supports MP4 / WebM, up to {mb} MB',
+      videoHint: 'Supports MP4 / WebM. Local files: no size limit',
       videoInvalidType: 'Please choose an MP4 or WebM video',
-      videoTooLarge: 'Video is too large (max {mb} MB)',
       videoSaveFailed: 'Failed to save the video',
       presetColor: {
         midNightBlue: 'Midnight Blue',

@@ -138,9 +138,8 @@ export const zh_CN: TranslationTree = {
       videoReplace: '更换视频',
       videoRemove: '删除视频',
       videoMuted: '静音',
-      videoHint: '支持 MP4 / WebM,最大 {mb}MB',
+      videoHint: '支持 MP4 / WebM,本地文件无大小限制',
       videoInvalidType: '请选择 MP4 / WebM 视频文件',
-      videoTooLarge: '视频文件过大(最大 {mb}MB)',
       videoSaveFailed: '保存视频失败',
       presetColor: {
         midNightBlue: '深夜蓝',
